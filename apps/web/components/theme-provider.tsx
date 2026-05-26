@@ -2,22 +2,19 @@
 
 import * as React from "react"
 import { ThemeProvider as NextThemesProvider, useTheme } from "next-themes"
+import { ConvexProvider, ConvexReactClient } from "convex/react"
+
+
+const convex = new ConvexReactClient(process.env.NEXT_PUBLIC_CONVEX_URL || "")
 
 function ThemeProvider({
   children,
   ...props
 }: React.ComponentProps<typeof NextThemesProvider>) {
   return (
-    <NextThemesProvider
-      attribute="class"
-      defaultTheme="system"
-      enableSystem
-      disableTransitionOnChange
-      {...props}
-    >
-      <ThemeHotkey />
+    <ConvexProvider client = {convex}>
       {children}
-    </NextThemesProvider>
+    </ConvexProvider>
   )
 }
 
