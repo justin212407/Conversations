@@ -4,8 +4,9 @@
       "baseUrl": ".",
       "paths": {
         "@workspace/backend/*": ["./convex/*"],
-      }
+      },
+      "types": ["node"]
 },
   "include": ["."],
-  "exclude": ["node_modules"]
+  "exclude": ["node_modules"] 
 }
