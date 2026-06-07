@@ -8,12 +8,11 @@ interface TranscriptMessage {
 
 export const useVapi = () => {
     const [vapi, setVapi] = useState<Vapi | null>(null)
-    const [connected, setIsConnected] = useState(false);
-    const [connecting, setIsConnecting] = useState(false);
-    const [speaking, setIsSpeaking] = useState(false);
+    const [isConnected, setIsConnected] = useState(false);
+    const [isConnecting, setIsConnecting] = useState(false);
+    const [isSpeaking, setIsSpeaking] = useState(false);
     const [transcript, setTranscript] = useState(<TranscriptMessage[]>([]));
-
-    useEffect (() => {
+    useEffect(() => {
         // Only for testing the Vapi API, otherwise customers will provide their own API keys
         const vapiInstance = new Vapi("a3ac893f-3c77-4c1f-8857-50be5f8869b2");
         setVapi(vapiInstance);
@@ -38,6 +37,48 @@ export const useVapi = () => {
             setIsSpeaking(false);
         });
 
+        vapiInstance.on("error", (error) => {
+            console.log(error, "VAPI_ERROR");
+            setIsConnecting(false);
+        });
+
+        vapiInstance.on("message", (message) => {
+            if (message.type === "transcript"&& message.transcriptType === "final"){
+                setTranscript((prev) => [
+                    ...prev,
+                    {
+                        role: message.role === "user" ? "user" : "assistant",
+                        text: message.transcript,
+                    }
+                ])
+            } 
+        })
+        return () => {
+            vapiInstance?.stop();
+        }
     }, [])
+    const startCall = () => {
+            setIsConnecting(true);
+
+            if (vapi) {
+                // Only for testing the Vapi API, otherwise customers will provide their own Assistant IDs
+                vapi.start("bf8bc49f-7ea1-45d1-9256-be4f08cd8b4c")
+            }
+        }
+
+    const endCall = () => {
+        if (vapi) {
+            vapi.stop()
+        }
+    }
+
+    return {
+        isSpeaking,
+        isConnected,
+        isConnecting,
+        transcript, 
+        startCall,
+        endCall
+    }
 }
 
