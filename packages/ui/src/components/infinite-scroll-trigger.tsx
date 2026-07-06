@@ -1,5 +1,5 @@
 import {Button} from"@workspace/ui/components/button";
-import { cn } from "../lib/utils.js";
+import { cn } from "@workspace/ui/lib/utils";
 
 interface InfiniteScrollTriggerProps {
     canLoadMore: boolean,
@@ -11,18 +11,20 @@ interface InfiniteScrollTriggerProps {
     ref?: React.Ref<HTMLDivElement> 
 }
 
-export const infiniteScrollTrigger = ({
+export const InfiniteScrollTrigger = ({
     canLoadMore, 
     isLoadingMore, 
     onLoadMore,
     loadMoreText = "Load More",
-    noMoreText = "No more items"
+    noMoreText = "No more items",
+    className,
+    ref
 }: InfiniteScrollTriggerProps) => {
     let text = loadMoreText;
 
     if (isLoadingMore){
         text = "Loading..."
-    }else if(!canLoadMore{
+    }else if(!canLoadMore){
         text = noMoreText;
     }
 

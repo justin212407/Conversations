@@ -7,7 +7,7 @@ interface UseInfiniteScrollProps {
     observerEnabled?:boolean
 }
 
-export const UseInfiniteScrollProps = ({
+export const useInfiniteScroll = ({
     status,
     loadMore,
     loadSize=10,
@@ -45,8 +45,8 @@ export const UseInfiniteScrollProps = ({
         topElementRef,
         handleLoadMore,
         canLoadMore: status === 'CanLoadMore',
-        IsLoadingMore: status === 'LoadingMore',
+        isLoadingMore: status === 'LoadingMore',
         isLoadingFirstPage: status === 'LoadingFirstPage',
-        IsExhausted: status === 'Exhausted'
+        isExhausted: status === 'Exhausted'
     }
 }
