@@ -1,0 +1,51 @@
+name: Service checks
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: services-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  foundation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: conversations
+          POSTGRES_PASSWORD: conversations_local
+          POSTGRES_DB: conversations
+        ports: ["55432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U conversations -d conversations"
+          --health-interval 3s --health-timeout 3s --health-retries 20
+      redis:
+        image: redis:7.4-alpine
+        ports: ["56379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 3s --health-timeout 3s --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: corepack enable && corepack prepare pnpm@10.4.1 --activate
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm services:build
+      - run: pnpm services:typecheck
+      - run: pnpm services:lint
+      - run: pnpm services:test
+      - run: pnpm services:smoke
+      - name: Validate container configuration
+        run: docker compose config --quiet
+      - name: Verify private journal is not tracked
+        run: test -z "$(git ls-files -- docs/local-change-log.md)"

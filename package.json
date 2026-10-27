@@ -7,7 +7,14 @@
     "dev": "turbo dev",
     "lint": "turbo lint",
     "format": "turbo format",
-    "typecheck": "turbo typecheck"
+    "typecheck": "turbo typecheck",
+    "services:build": "pnpm --filter '@conversations/*' -r build",
+    "services:typecheck": "pnpm --filter '@conversations/*' -r typecheck",
+    "services:lint": "pnpm --filter '@conversations/*' -r lint",
+    "services:test": "pnpm --filter @conversations/service-runtime test",
+    "services:dev": "pnpm services:build && pnpm --parallel --filter @conversations/api --filter @conversations/worker --filter @conversations/realtime dev",
+    "services:probe": "pnpm --filter @conversations/worker probe",
+    "services:smoke": "node --env-file-if-exists=.env scripts/check-service-foundation.mjs"
   },
   "devDependencies": {
     "@workspace/eslint-config": "workspace:*",

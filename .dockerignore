@@ -1,0 +1,13 @@
+.git
+**/node_modules
+**/dist
+**/.next
+**/.turbo
+**/coverage
+**/.env*
+!**/.env.example
+docs/local-change-log.md
+.commandcode
+.agents
+.codex
+.aws
