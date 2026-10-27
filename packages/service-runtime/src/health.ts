@@ -8,6 +8,7 @@ export interface Dependency {
 }
 export interface Resources {
   dependencies: Dependency[]
+  stopIntake?: () => Promise<void>
   close: () => Promise<void>
 }
 
@@ -36,11 +37,13 @@ async function checkDependency(
 
 export function createHealthServer(
   config: ServiceConfig,
-  resources: Resources
+  resources: Resources,
+  logStream?: { write: (message: string) => void }
 ): FastifyInstance {
   const app = Fastify({
     logger: {
       level: config.LOG_LEVEL,
+      ...(logStream ? { stream: logStream } : {}),
       base: { service: config.service },
       redact: [
         "req.headers.authorization",
@@ -58,9 +61,18 @@ export function createHealthServer(
   let closing = false
   app.addHook("preClose", async () => {
     closing = true
+    await resources.stopIntake?.()
   })
   app.addHook("onClose", async () => {
     await resources.close()
+  })
+  // Fastify's default 404 message includes the raw URL independently of the
+  // request serializer. A stale ticket-bearing path must remain secret too.
+  app.setNotFoundHandler((request, reply) => {
+    return reply.code(404).send({
+      error: { code: "NOT_FOUND", message: "Route not found" },
+      requestId: request.id,
+    })
   })
   app.get(
     "/health/live",

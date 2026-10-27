@@ -1,5 +1,6 @@
 import assert from "node:assert/strict"
 import { test } from "node:test"
+import { setTimeout as delay } from "node:timers/promises"
 import { loadConfig, redisConnectionOptions } from "../src/config.js"
 import { createHealthServer } from "../src/health.js"
 
@@ -10,6 +11,29 @@ const environment = {
   DATABASE_URL: "postgresql://test:test@localhost:5432/test",
   HEALTH_TIMEOUT_MS: "100",
 }
+test("unknown routes do not expose query tokens in logs or responses", async (t) => {
+  const logs: string[] = []
+  const secret = "SYNTHETIC_QUERY_TOKEN"
+  const app = createHealthServer(
+    loadConfig("api", { ...environment, LOG_LEVEL: "info" }),
+    { dependencies: [], close: async () => {} },
+    {
+      write: (message) => {
+        logs.push(message)
+      },
+    }
+  )
+  t.after(() => app.close())
+  const response = await app.inject({
+    url: `/unknown?ticket=${secret}`,
+    headers: { authorization: `Bearer ${secret}`, cookie: `session=${secret}` },
+  })
+  assert.equal(response.statusCode, 404)
+  assert.equal(response.json().error.code, "NOT_FOUND")
+  assert.ok(logs.length > 0)
+  assert.ok(!logs.join("").includes(secret))
+  assert.ok(!response.body.includes(secret))
+})
 test("configuration rejects missing/unsafe values without disclosing secrets", () => {
   assert.throws(
     () => loadConfig("api", { REDIS_URL: environment.REDIS_URL }),
@@ -126,4 +150,57 @@ test("closing the server releases the owned resources", async () => {
   await app.ready()
   await app.close()
   assert.equal(closed, 1)
+})
+
+test("shutdown stops job intake before draining an active HTTP request", async () => {
+  let enterCheck!: () => void
+  let releaseCheck!: () => void
+  let signalStopped!: () => void
+  const entered = new Promise<void>((resolve) => {
+    enterCheck = resolve
+  })
+  const pending = new Promise<void>((resolve) => {
+    releaseCheck = resolve
+  })
+  const stopped = new Promise<void>((resolve) => {
+    signalStopped = resolve
+  })
+  let resourcesClosed = false
+  const app = createHealthServer(
+    loadConfig("worker", { ...environment, HEALTH_TIMEOUT_MS: "2000" }),
+    {
+      dependencies: [
+        {
+          name: "queue",
+          check: () => {
+            enterCheck()
+            return pending
+          },
+        },
+      ],
+      stopIntake: async () => {
+        signalStopped()
+      },
+      close: async () => {
+        resourcesClosed = true
+      },
+    }
+  )
+  const response = app.inject("/health/ready")
+  await entered
+  const closing = app.close()
+  try {
+    await Promise.race([
+      stopped,
+      delay(500).then(() => {
+        throw new Error("Intake was not stopped before HTTP drain")
+      }),
+    ])
+    assert.equal(resourcesClosed, false)
+  } finally {
+    releaseCheck()
+    await closing
+  }
+  assert.equal((await response).statusCode, 503)
+  assert.equal(resourcesClosed, true)
 })

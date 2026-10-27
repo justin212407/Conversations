@@ -34,6 +34,7 @@ async function main() {
   )
   worker.on("error", () => {}) // Report availability through readiness; never expose Redis credentials.
   const app = createHealthServer(config, {
+    stopIntake: () => worker.pause(true),
     dependencies: [
       ...resources.dependencies,
       {
