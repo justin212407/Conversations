@@ -44,7 +44,7 @@ Keep GitHub #15 and its sub-issues as the user-facing task tracker. Add browser-
 
 Work began on 2026-10-28 on slice-1/service-foundation. The user explicitly authorized fresh PostgreSQL data while preserving Convex data untouched.
 
-Local verification completed: scoped build/typecheck/lint, seven runtime tests, real-dependency smoke (including queue round trip, outage behavior, SIGTERM cleanup), Compose image build/start, all three container readiness checks, and an in-container worker probe. Frozen offline installation also succeeded. PR #27 adds a GitHub Actions gate repeating the foundation checks before merge. The legacy frontend profile and all conversation features remain outside the verified foundation.
+Local verification completed: scoped build/typecheck/lint, nine runtime tests, real-dependency smoke (including queue round trip, outage behavior, SIGTERM cleanup), Compose image build/start, all three container readiness checks, and an in-container worker probe. Frozen offline installation also succeeded. Independent review identified and verified fixes for query-token leakage in default not-found logs and worker intake continuing during HTTP drain. PR #27 adds a GitHub Actions gate repeating the foundation checks before merge. Its hosted job currently cannot start because of an account-level Actions restriction; no CI test result is claimed. The legacy frontend profile and all conversation features remain outside the verified foundation.
 
 ## Follow-ups
 
