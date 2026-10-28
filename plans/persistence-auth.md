@@ -1,11 +1,12 @@
 ---
-status: in-progress
+status: done
 depends: [service-foundation]
 specs:
   - specs/architecture.md
   - specs/behaviors/conversation-lifecycle.md
   - specs/api/conversations.md
 issues: [18]
+pr: 28
 ---
 
 # Plan: Persistence and personal-account authorization
@@ -30,14 +31,14 @@ Implement #18 after merged PR #27: PostgreSQL/Drizzle accounts, conversations, a
 
 ## Validation
 
-- [ ] Generated Drizzle schema/migrations define accounts, conversations, and messages with ownership, identity, ordering, and lifecycle constraints/indexes.
-- [ ] Clean setup and migration re-run/upgrade preserve data and pass against real PostgreSQL.
-- [ ] Concurrent provisioning of one verified Clerk subject produces one account.
-- [ ] API rejects absent, malformed, invalid-signature, expired, wrong-issuer, and unauthorized-party credentials; only a verified identity provisions an account.
-- [ ] `/v1/me` returns the same internal account across repeated authenticated requests, without exposing credentials.
-- [ ] Shared data-access/subscription authorization denies another account's reads and mutations and treats deleted/missing conversations as inaccessible.
-- [ ] Concurrent message writes retain unique stable IDs and conversation-local sequence order, with rollback on failure.
-- [ ] Scoped build/typecheck/lint/tests and real-dependency smoke pass; local-only records and secrets remain untracked.
+- [x] Generated Drizzle schema/migrations define accounts, conversations, and messages with ownership, identity, ordering, and lifecycle constraints/indexes.
+- [x] Clean setup and migration re-run/upgrade preserve data and pass against real PostgreSQL.
+- [x] Concurrent provisioning of one verified Clerk subject produces one account.
+- [x] API rejects absent, malformed, invalid-signature, expired, wrong-issuer, and unauthorized-party credentials; only a verified identity provisions an account.
+- [x] `/v1/me` returns the same internal account across repeated authenticated requests, without exposing credentials.
+- [x] Shared data-access/subscription authorization denies another account's reads and mutations and treats deleted/missing conversations as inaccessible.
+- [x] Concurrent message writes retain unique stable IDs and conversation-local sequence order, with rollback on failure.
+- [x] Scoped build/typecheck/lint/tests and real-dependency smoke pass; local-only records and secrets remain untracked.
 
 ## Risks / unknowns
 
@@ -47,8 +48,17 @@ Implement #18 after merged PR #27: PostgreSQL/Drizzle accounts, conversations, a
 
 ## Notes
 
-PR #27 merged as `a7a2050`; the dependency is present on origin/main before this worktree was created.
+PR #27 merged as `a7a2050`; the dependency was present on origin/main before this worktree was created. Implementation is PR #28.
+
+Build/typecheck/lint pass. Seventeen top-level tests pass: four PostgreSQL migration/ownership/concurrency suites, nine runtime regressions, and four API suites using signed local fixtures through Clerk verification, including its network seam. The isolated smoke verifies schema readiness, missing-bearer rejection, real queue delivery, dependency outage, and clean shutdown. Frozen offline installation, generated-schema consistency, Compose config, formatting, and diff checks pass. All tests/smoke use uniquely named temporary databases; the base DB and Convex data remain untouched.
+
+API identity and readiness reuse the runtime-owned pool. All expected migration hashes must be present, while additive ahead migrations can coexist during rollout. Migration waits are bounded. Invalid sessions return 401; provider/configuration outages return generic 503. These behaviors and the temporary merge policy are documented in development/Slice 1 guidance.
+
+The root agent verified the existing Clerk backend key and configured issuer return matching JWKS, but no real end-user session issuance is claimed. Live session UX is verified with #22. Actual socket subscriptions consume this feature's tested shared authorization boundary in #21; no application socket endpoint is claimed here. Hosted CI remains unavailable and the user explicitly authorized reviewed local checks as the temporary gate.
 
 ## Follow-ups
 
-Tracked by #19–#26 and the durable-conversation plan. Do not mark downstream behavior implemented by this foundation.
+- Issue [#19](https://github.com/justin212407/Conversations/issues/19) — conversation REST/OpenAPI and reliable event handoff use this persistence boundary.
+- Issue [#21](https://github.com/justin212407/Conversations/issues/21) — realtime-ticket/subscription flow consumes shared ownership authorization and enforces access revocation.
+- Issue [#22](https://github.com/justin212407/Conversations/issues/22) — verify real-user Clerk sign-in and workspace flow.
+- Issues #20, #23–#26 — remaining generation, voice, observability, regression, and deployment acceptance in the durable-conversation plan.
