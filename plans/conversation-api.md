@@ -1,11 +1,12 @@
 ---
-status: in-progress
+status: done
 depends: [persistence-auth]
 specs:
   - specs/architecture.md
   - specs/behaviors/conversation-lifecycle.md
   - specs/api/conversations.md
 issues: [19]
+pr: 29
 ---
 
 # Plan: Versioned conversation API and durable commands
@@ -31,14 +32,14 @@ Complete #19 after merged PR #28: authenticated conversation CRUD, keyset-pagina
 
 ## Validation
 
-- [ ] Owned conversation create/list/read/rename/archive/unarchive/soft-delete match the accepted lifecycle; cross-account and deleted resources return indistinguishable 404s.
-- [ ] Conversation/message pagination is stable across ties, full timestamp precision, and cursor boundaries; limits and invalid/cross-resource cursors are validated.
-- [ ] Invalid inputs, state conflicts, oversized data, auth failures, and unavailable dependencies use documented credential-safe errors.
-- [ ] Text submission atomically persists stable user/assistant/operation identities and durable generation handoff; concurrent duplicates converge and changed-payload reuse conflicts.
-- [ ] Active-operation admission, controlled retry, and explicit interruption/recovery preserve history and avoid duplicate user turns.
-- [ ] Common text/voice finalization and application-event handoff are transactional and idempotent; simulated delivery interruption leaves recoverable durable state.
-- [ ] Runtime OpenAPI 3.1 accurately describes implemented routes and examples without claiming worker/socket/provider features exist.
-- [ ] Scoped build/typecheck/lint, real database/API tests, existing regressions, migration upgrade, and isolated smoke pass; private records/secrets remain untracked.
+- [x] Owned conversation create/list/read/rename/archive/unarchive/soft-delete match the accepted lifecycle; cross-account and deleted resources return indistinguishable 404s.
+- [x] Conversation/message pagination is stable across ties, full timestamp precision, and cursor boundaries; limits and invalid/cross-resource cursors are validated.
+- [x] Invalid inputs, state conflicts, oversized data, auth failures, and unavailable dependencies use documented credential-safe errors.
+- [x] Text submission atomically persists stable user/assistant/operation identities and durable generation handoff; concurrent duplicates converge and changed-payload reuse conflicts.
+- [x] Active-operation admission, controlled retry, and explicit interruption/recovery preserve history and avoid duplicate user turns.
+- [x] Common text/voice finalization and application-event handoff are transactional and idempotent; simulated delivery interruption leaves recoverable durable state.
+- [x] Runtime OpenAPI 3.1 accurately describes implemented routes and examples without claiming worker/socket/provider features exist.
+- [x] Scoped build/typecheck/lint, real database/API tests, existing regressions, migration upgrade, and isolated smoke pass; private records/secrets remain untracked.
 
 ## Risks / unknowns
 
@@ -48,8 +49,17 @@ Complete #19 after merged PR #28: authenticated conversation CRUD, keyset-pagina
 
 ## Notes
 
-PR #28 merged as `3df1bdd`; the dependency is on main before this worktree was created. Runtime OpenAPI publication explicitly includes the prior identity endpoint.
+PR #28 merged as `3df1bdd`; the dependency was on main before this worktree was created. Implementation is PR #29, with behavior clarified in the source specifications before the implementation commit.
+
+Build/typecheck/lint pass. Twenty-nine top-level tests pass across eleven real PostgreSQL suites, nine authenticated API suites using the real Clerk SDK/signatures, and nine runtime regressions. Coverage includes ownership/deletion, strict/Unicode limits, full-precision/tied/cross-scope pagination, concurrent admission/replay/state mutation, controlled retry/expiry recovery, execution/dispatch fencing, final delivery identity, transactional handoff failure/rollback, semantic shared payloads, and browser preflight. Isolated PostgreSQL/Redis/BullMQ smoke, frozen offline install, generated-schema consistency, formatting and diff checks pass.
+
+Migration 0002 is generated from the committed schema/snapshot; review exposed that prerequisite unique indexes needed to precede their composite foreign keys, so only those statements were reordered before application. Existing migrations and legacy dependency resolutions remain unchanged. The server handoff/finalization and cursor interfaces are documented in `docs/conversation-api.md`; concrete schemas/types live in browser-safe shared.
+
+A 202 is durable pending admission, not generated content. Actual worker/socket/provider/UI behavior and cloud verification remain downstream. Hosted CI remains unavailable and the user explicitly authorized reviewed local checks as the temporary gate. Railway is deferred to deployment; Vapi stays on the current free plan.
 
 ## Follow-ups
 
-Tracked by #20–#26 and the durable-conversation plan; no downstream behavior is claimed complete by this API feature.
+- Issue [#20](https://github.com/justin212407/Conversations/issues/20) — consume validated durable generation handoffs, reload authoritative context/state, admit execution, and finalize through the common transaction.
+- Issue [#21](https://github.com/justin212407/Conversations/issues/21) — consume validated sequenced events, apply shared ownership authorization, and deduplicate/reconcile socket delivery.
+- Issue [#23](https://github.com/justin212407/Conversations/issues/23) — authenticate registered provider sessions and map stable turn identities into finalized delivery receipts; no browser transcript authority.
+- Issues #22, #24–#26 — workspace, broader diagnostics/security, full regression, and deployment acceptance remain in the durable-conversation plan.
