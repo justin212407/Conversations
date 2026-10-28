@@ -8,18 +8,22 @@
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "lint": "eslint .",
     "dev": "node --env-file-if-exists=../../.env --import tsx --watch src/index.ts",
-    "start": "node dist/index.js"
+    "start": "node dist/index.js",
+    "test": "node --test test/*.test.mjs"
   },
   "dependencies": {
-    "@conversations/shared": "workspace:*",
-    "@conversations/service-runtime": "workspace:*"
+    "@clerk/backend": "3.26.4",
+    "@conversations/database": "workspace:^",
+    "@conversations/service-runtime": "workspace:*",
+    "@conversations/shared": "workspace:*"
   },
   "devDependencies": {
-    "@workspace/typescript-config": "workspace:*",
-    "@workspace/eslint-config": "workspace:*",
     "@types/node": "^22.18.0",
+    "@workspace/eslint-config": "workspace:*",
+    "@workspace/typescript-config": "workspace:*",
     "eslint": "^9.39.2",
-    "typescript": "5.9.3",
-    "tsx": "4.23.15"
+    "jose": "6.2.13",
+    "tsx": "4.23.15",
+    "typescript": "5.9.3"
   }
 }

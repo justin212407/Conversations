@@ -4,7 +4,9 @@ import type { ServiceConfig } from "./config.js"
 import { redisConnectionOptions } from "./config.js"
 import type { Resources, Dependency } from "./health.js"
 
-export function createResources(config: ServiceConfig): Resources {
+export function createResources(
+  config: ServiceConfig
+): Resources & { postgres?: pg.Pool } {
   const redis = new Redis({
     ...redisConnectionOptions(config.REDIS_URL),
     lazyConnect: true,
@@ -34,6 +36,7 @@ export function createResources(config: ServiceConfig): Resources {
   if (pool)
     dependencies.push({ name: "postgres", check: () => pool.query("SELECT 1") })
   return {
+    postgres: pool,
     dependencies,
     async close() {
       redis.disconnect()

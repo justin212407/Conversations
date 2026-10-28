@@ -3,6 +3,8 @@ import { spawn } from "node:child_process"
 import { once } from "node:events"
 import { createServer } from "node:net"
 import { setTimeout as delay } from "node:timers/promises"
+import { migrateDatabase } from "../packages/database/dist/index.js"
+import { createTestDatabase } from "../packages/database/test/database-fixture.mjs"
 
 const environment = {
   ...process.env,
@@ -81,7 +83,10 @@ async function within(promise, milliseconds) {
 }
 
 const running = []
+const database = await createTestDatabase()
 try {
+  await migrateDatabase(database.pool)
+  environment.DATABASE_URL = database.connectionString
   for (const service of ["api", "worker", "realtime"]) {
     const port = await availablePort()
     const handle = start(`apps/${service}/dist/index.js`, {
@@ -95,6 +100,10 @@ try {
     if (service === "realtime") assert.equal(ready.checks.postgres, undefined)
     else assert.equal(ready.checks.postgres, "up")
     if (service === "worker") assert.equal(ready.checks.queue, "up")
+    if (service === "api") {
+      assert.equal(ready.checks.schema, "up")
+      assert.equal((await fetch(`http://127.0.0.1:${port}/v1/me`)).status, 401)
+    }
     console.log(`${service}: ready against real dependencies`)
   }
 
@@ -145,4 +154,5 @@ try {
       }
     }
   }
+  await database.close()
 }

@@ -11,10 +11,11 @@
     "services:build": "pnpm --filter '@conversations/*' -r build",
     "services:typecheck": "pnpm --filter '@conversations/*' -r typecheck",
     "services:lint": "pnpm --filter '@conversations/*' -r lint",
-    "services:test": "pnpm --filter @conversations/service-runtime test",
+    "services:test": "pnpm --filter '@conversations/*' -r --if-present test",
     "services:dev": "pnpm services:build && pnpm --parallel --filter @conversations/api --filter @conversations/worker --filter @conversations/realtime dev",
     "services:probe": "pnpm --filter @conversations/worker probe",
-    "services:smoke": "node --env-file-if-exists=.env scripts/check-service-foundation.mjs"
+    "services:smoke": "node --env-file-if-exists=.env scripts/check-service-foundation.mjs",
+    "services:migrate": "pnpm --filter @conversations/database migrate"
   },
   "devDependencies": {
     "@workspace/eslint-config": "workspace:*",
