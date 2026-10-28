@@ -1,12 +1,13 @@
 # Local development
 
-The service foundation is the first implemented milestone of [Slice 1](slice-1.md). It supplies independently runnable API, worker, and realtime processes, health checks, and a real queue probe. Conversation persistence/authentication, application WebSockets, generation, and the new UI are subsequent issues; a green health check does not claim those features exist.
+The [Slice 1](slice-1.md) services provide API/worker/realtime processes, health checks, and a real queue probe. PostgreSQL/Drizzle persistence and Clerk-backed `/v1/me` add the personal-account boundary. Conversation HTTP routes, application WebSockets, generation, and the new UI remain subsequent issues; healthy infrastructure does not claim those features exist.
 
 ## Prerequisites
 
 - Node.js 22 and pnpm 10.4.1 (the version in `packageManager`).
 - Docker with Compose v2 for PostgreSQL/Redis and optional service containers.
 - No Clerk, voice, or model credentials are required for foundation verification.
+- Tests and smoke require PostgreSQL `CREATE DATABASE` permission: each run creates and drops uniquely named temporary databases. Set `TEST_DATABASE_URL` to override the local test admin connection; no test truncates or migrates the shared base database.
 
 ## Run the containerized foundation
 
@@ -22,6 +23,8 @@ docker compose exec worker node apps/worker/dist/probe.js
 
 The API, realtime, and worker ports are 4300, 4301, and 4302. Host PostgreSQL is 55432 and Redis is 56379. `.env.example` documents port overrides. Published ports bind to loopback. Compose uses the isolated `conversations-slice1` project and named data volumes; it does not touch other projects or existing Convex data.
 
+Compose runs the one-shot `migrate` service after PostgreSQL is healthy and waits for its success before starting the API. Restarting an API process never implicitly migrates the database.
+
 `/health/live` means the process serves HTTP. `/health/ready` checks live PostgreSQL/Redis connectivity as appropriate; the worker also checks its actual BullMQ backend. Dependency failure returns 503 without exposing credentials. Signal-driven shutdown drains work and closes connections within a deadline.
 
 ## Run services on the host
@@ -29,6 +32,8 @@ The API, realtime, and worker ports are 4300, 4301, and 4302. Host PostgreSQL is
 ```sh
 pnpm install --frozen-lockfile
 docker compose up -d postgres redis
+pnpm services:build
+pnpm services:migrate
 pnpm services:dev
 ```
 
@@ -45,11 +50,21 @@ pnpm services:smoke
 pnpm services:probe
 ```
 
-The smoke check needs local PostgreSQL/Redis and compiled service output. It starts temporary service processes on free ports, checks real dependency readiness and queue execution, verifies a dependency outage, and confirms clean SIGTERM shutdown. It cleans up only its own child processes. The standalone probe requires a running worker.
+The smoke check needs local PostgreSQL/Redis and compiled service output. It creates and migrates an isolated database, starts temporary service processes on free ports, checks real dependency/schema readiness, unauthenticated `/v1/me` rejection, and queue execution, verifies a dependency outage, and confirms clean SIGTERM shutdown. It cleans up its child processes and temporary database. The standalone probe requires a running worker. `services:test` includes actual PostgreSQL ownership/concurrency/upgrade tests and signed local RSA fixtures through the real Clerk verification SDK; it does not require live provider secrets.
 
 ## Migrations
 
-The foundation has no domain tables or migrations yet. Issue #18 adds the Drizzle schema and the explicit one-shot migration command; #19 cannot enable conversation routes before that migration succeeds. Database migrations will run once before service rollout rather than concurrently on every startup. No command imports or removes old Convex data.
+`packages/database` contains the Drizzle schema, generated SQL/snapshots/journal, and the explicit `pnpm services:migrate` command. Migration 0000 installs accounts; 0001 adds conversations/messages and lifecycle/ownership/order constraints. Apply committed migrations before service rollout. Concurrent runners serialize using a database advisory lock on one connection, with a 10-second lock timeout and 30-second statement timeout. Do not edit an applied migration; update the schema and run `pnpm --filter @conversations/database generate --name <change>` to generate the next migration.
+
+API readiness verifies every expected migration hash and the required tables, while tolerating additive ahead migrations during a rolling deployment. Missing or altered history keeps readiness at 503. No command imports or removes old Convex data.
+
+## Authentication and the account boundary
+
+Configure `CLERK_JWT_ISSUER_DOMAIN` (the exact HTTPS Clerk issuer without a trailing slash), `CLERK_SECRET_KEY`, and comma-separated `CLERK_AUTHORIZED_PARTIES`. `CLERK_JWT_KEY` may supply the Clerk PEM public verification key instead of remote JWKS retrieval. Development defaults allowed parties to localhost/127.0.0.1 on ports 3000/4303; production requires an explicit allowlist. Only API containers receive Clerk secrets. Never prefix a server secret with `NEXT_PUBLIC_`.
+
+An entirely unconfigured development instance serves health endpoints but cannot provision an account: `/v1/me` returns 401 without a bearer credential and 503 if authentication is unavailable. Partial authentication settings and missing production settings stop startup. With valid settings, send the frontend's Clerk session token as `Authorization: Bearer ...` to `GET /v1/me`; its response contains only the internal account ID and creation/update timestamps. Repeated/concurrent sessions for the same verified subject resolve the same account. Machine tokens, invalid signatures, wrong issuers/parties, pending sessions, and expired tokens are rejected. JWKS/network outages return a generic 503 rather than exposing SDK diagnostics.
+
+The server-only `ConversationStore` scopes reads/writes/subscription authorization to that internal account. Mutation checks and writes share a conversation row lock; sequences are allocated in the same transaction as message insertion. These helpers are the boundary consumed by #19 and #21, not implemented conversation HTTP or WebSocket endpoints. Do not trust a client-supplied account ID. A live Clerk secret/issuer JWKS association was checked separately; deterministic JWT tests do not prove a real end-user session was issued.
 
 ## Existing frontend during transition
 

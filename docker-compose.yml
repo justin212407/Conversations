@@ -67,6 +67,17 @@ services:
     environment:
       <<: *environment
       PORT: 4300
+      CLERK_JWT_ISSUER_DOMAIN: ${CLERK_JWT_ISSUER_DOMAIN:-}
+      CLERK_SECRET_KEY: ${CLERK_SECRET_KEY:-}
+      CLERK_JWT_KEY: ${CLERK_JWT_KEY:-}
+      CLERK_AUTHORIZED_PARTIES: ${CLERK_AUTHORIZED_PARTIES:-http://localhost:3000,http://127.0.0.1:3000,http://localhost:4303,http://127.0.0.1:4303}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     healthcheck:
       test:
         [
@@ -78,6 +89,15 @@ services:
       interval: 5s
       timeout: 3s
       retries: 20
+
+  migrate:
+    <<: *service
+    image: conversations-slice1-api
+    command: ["node", "packages/database/dist/migrate-cli.js"]
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
 
   worker:
     <<: *service

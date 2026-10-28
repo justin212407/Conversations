@@ -8,6 +8,7 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY packages/typescript-config ./packages/typescript-config
 COPY packages/eslint-config ./packages/eslint-config
 COPY packages/shared ./packages/shared
+COPY packages/database ./packages/database
 COPY packages/service-runtime ./packages/service-runtime
 COPY apps/api ./apps/api
 COPY apps/worker ./apps/worker
