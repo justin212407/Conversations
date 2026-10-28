@@ -12,3 +12,10 @@ export {
   checkDatabaseSchema,
   migrationsFolder,
 } from "./migrate.js"
+export {
+  DomainError,
+  InvalidInput,
+  InputLimitExceeded,
+  isUuid,
+} from "./errors.js"
+export { type Operation, admission } from "./commands.js"

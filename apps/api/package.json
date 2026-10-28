@@ -15,7 +15,8 @@
     "@clerk/backend": "3.26.4",
     "@conversations/database": "workspace:^",
     "@conversations/service-runtime": "workspace:*",
-    "@conversations/shared": "workspace:*"
+    "@conversations/shared": "workspace:*",
+    "@fastify/cors": "11.3.1"
   },
   "devDependencies": {
     "@types/node": "^22.18.0",
