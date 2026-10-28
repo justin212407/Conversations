@@ -85,8 +85,9 @@ test("auth configuration rejects partial/insecure production settings and permit
   assert.deepEqual(production.authorizedParties, ["https://app.example"])
 })
 
-test("the API verifies real JWT signatures and only provisions valid completed user sessions", async () => {
+test("the API verifies real JWT signatures and only provisions valid completed user sessions", async (t) => {
   const database = await createTestDatabase()
+  t.after(() => database.close())
   const identity = await identityFixture()
   const foreignKeys = await generateKeyPair("RS256")
   await migrateDatabase(database.pool)
@@ -198,12 +199,12 @@ test("the API verifies real JWT signatures and only provisions valid completed u
     assert.ok(!failed.body.includes("accounts"))
   } finally {
     await app.close()
-    await database.close()
   }
 })
 
-test("unconfigured development retains health but cannot authenticate or provision an account", async () => {
+test("unconfigured development retains health but cannot authenticate or provision an account", async (t) => {
   const database = await createTestDatabase()
+  t.after(() => database.close())
   const app = createApi(
     serviceConfig(),
     { dependencies: [], close: async () => {} },
@@ -222,12 +223,12 @@ test("unconfigured development retains health but cannot authenticate or provisi
     assert.equal(result.json().error.code, "AUTH_UNAVAILABLE")
   } finally {
     await app.close()
-    await database.close()
   }
 })
 
-test("Clerk JWKS outages return 503 through the SDK network seam without provisioning", async () => {
+test("Clerk JWKS outages return 503 through the SDK network seam without provisioning", async (t) => {
   const database = await createTestDatabase()
+  t.after(() => database.close())
   const identity = await identityFixture()
   const savedFetch = globalThis.fetch
   const savedMode = process.env.NODE_ENV
@@ -296,6 +297,5 @@ test("Clerk JWKS outages return 503 through the SDK network seam without provisi
     if (savedMode === undefined) delete process.env.NODE_ENV
     else process.env.NODE_ENV = savedMode
     await app.close()
-    await database.close()
   }
 })
