@@ -1,0 +1,154 @@
+name: conversations-slice1
+
+x-service: &service
+  build:
+    context: .
+    target: services
+  init: true
+  restart: unless-stopped
+  stop_grace_period: 15s
+  environment: &environment
+    NODE_ENV: development
+    HOST: 0.0.0.0
+    LOG_LEVEL: ${LOG_LEVEL:-info}
+    DATABASE_URL: postgresql://conversations:conversations_local@postgres:5432/conversations
+    REDIS_URL: redis://redis:6379
+    HEALTH_TIMEOUT_MS: ${HEALTH_TIMEOUT_MS:-1500}
+    SHUTDOWN_TIMEOUT_MS: ${SHUTDOWN_TIMEOUT_MS:-10000}
+  depends_on:
+    postgres:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: conversations
+      POSTGRES_PASSWORD: conversations_local
+      POSTGRES_DB: conversations
+    ports:
+      - "127.0.0.1:${CONVERSATIONS_POSTGRES_PORT:-55432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U conversations -d conversations"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7.4-alpine
+    command:
+      [
+        "redis-server",
+        "--appendonly",
+        "yes",
+        "--maxmemory-policy",
+        "noeviction",
+      ]
+    ports:
+      - "127.0.0.1:${CONVERSATIONS_REDIS_PORT:-56379}:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  api:
+    <<: *service
+    image: conversations-slice1-api
+    command: ["node", "apps/api/dist/index.js"]
+    ports:
+      - "127.0.0.1:${CONVERSATIONS_API_PORT:-4300}:4300"
+    environment:
+      <<: *environment
+      PORT: 4300
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:4300/health/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  worker:
+    <<: *service
+    image: conversations-slice1-worker
+    command: ["node", "apps/worker/dist/index.js"]
+    ports:
+      - "127.0.0.1:${CONVERSATIONS_WORKER_PORT:-4302}:4302"
+    environment:
+      <<: *environment
+      PORT: 4302
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:4302/health/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  realtime:
+    <<: *service
+    image: conversations-slice1-realtime
+    command: ["node", "apps/realtime/dist/index.js"]
+    ports:
+      - "127.0.0.1:${CONVERSATIONS_REALTIME_PORT:-4301}:4301"
+    environment:
+      NODE_ENV: development
+      HOST: 0.0.0.0
+      PORT: 4301
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      REDIS_URL: redis://redis:6379
+      HEALTH_TIMEOUT_MS: ${HEALTH_TIMEOUT_MS:-1500}
+      SHUTDOWN_TIMEOUT_MS: ${SHUTDOWN_TIMEOUT_MS:-10000}
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:4301/health/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  web:
+    profiles: ["frontend"]
+    build:
+      context: .
+      target: frontend
+    ports:
+      - "127.0.0.1:${CONVERSATIONS_WEB_PORT:-4303}:3000"
+    environment:
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:-}
+      CLERK_SECRET_KEY: ${CLERK_SECRET_KEY:-}
+      NEXT_PUBLIC_CLERK_SIGN_IN_URL: /sign-in
+      NEXT_PUBLIC_CLERK_SIGN_UP_URL: /sign-up
+      NEXT_PUBLIC_API_URL: http://localhost:${CONVERSATIONS_API_PORT:-4300}
+      NEXT_PUBLIC_REALTIME_URL: ws://localhost:${CONVERSATIONS_REALTIME_PORT:-4301}
+    depends_on:
+      api:
+        condition: service_healthy
+      realtime:
+        condition: service_healthy
+
+volumes:
+  postgres-data:
+  redis-data:
