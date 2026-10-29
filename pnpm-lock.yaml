@@ -115,18 +115,9 @@ importers:
       '@sentry/nextjs':
         specifier: ^10.54.0
         version: 10.54.0(@opentelemetry/core@2.7.1(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@2.7.1(@opentelemetry/api@1.9.1))(next@16.1.6(@opentelemetry/api@1.9.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react@19.2.4)(webpack@5.107.2)
-      '@workspace/backend':
-        specifier: workspace:*
-        version: link:../../packages/backend
-      '@workspace/math':
-        specifier: workspace:*
-        version: link:../../packages/math
       '@workspace/ui':
         specifier: workspace:*
         version: link:../../packages/ui
-      convex:
-        specifier: ^1.39.1
-        version: 1.39.1(@clerk/react@6.7.1(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react@19.2.4)
       lucide-react:
         specifier: ^1.16.0
         version: 1.16.0(react@19.2.4)
@@ -142,6 +133,12 @@ importers:
       react-dom:
         specifier: ^19.2.4
         version: 19.2.4(react@19.2.4)
+      '@conversations/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+      zod:
+        specifier: 3.25.76
+        version: 3.25.76
     devDependencies:
       '@tailwindcss/postcss':
         specifier: ^4.1.18
@@ -167,6 +164,15 @@ importers:
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
+      tsx:
+        specifier: 4.23.15
+        version: 4.23.15
+      esbuild:
+        specifier: 0.28.2
+        version: 0.28.2
+      postcss:
+        specifier: 8.5.6
+        version: 8.5.6
 
   apps/widget:
     dependencies:

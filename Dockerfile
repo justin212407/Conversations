@@ -19,10 +19,11 @@ ENV NODE_ENV=production HOST=0.0.0.0
 USER node
 CMD ["node", "apps/api/dist/index.js"]
 
-# Existing UI is opt-in during migration; dependencies are installed in-image.
+# Personal workspace remains opt-in; build browser contracts in a clean image.
 FROM base AS frontend
 COPY . .
 RUN pnpm install --frozen-lockfile
+RUN pnpm --filter @conversations/shared build
 ENV NODE_ENV=development
 EXPOSE 3000
 CMD ["pnpm", "--filter", "web", "dev", "--hostname", "0.0.0.0"]

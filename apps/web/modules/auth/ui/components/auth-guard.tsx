@@ -1,23 +1,21 @@
 "use client"
 
-import { Authenticated, Unauthenticated, AuthLoading } from "convex/react"
+import { useAuth } from "@clerk/nextjs"
+import { useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { AuthLayout } from "../layouts/auth-layout"
-import { SignInView } from "../views/sign-in-view"
 
-export const AuthGuard = ({ children }: {children: React.ReactNode}) => {
+export const AuthGuard = ({ children }: { children: React.ReactNode }) => {
+  const { isLoaded, isSignedIn } = useAuth(),
+    router = useRouter()
+  useEffect(() => {
+    if (isLoaded && !isSignedIn) router.replace("/sign-in")
+  }, [isLoaded, isSignedIn, router])
+  if (!isLoaded || !isSignedIn)
     return (
-    <>
-        <AuthLoading>
-            <AuthLayout>
-                Loading....
-            </AuthLayout>
-        </AuthLoading>
-        <Authenticated>
-            {children}
-        </Authenticated>
-        <Unauthenticated>
-            <SignInView />
-        </Unauthenticated>
-    </>
+      <AuthLayout>
+        <p role="status">Loading your workspace…</p>
+      </AuthLayout>
     )
+  return children
 }
