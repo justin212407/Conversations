@@ -38,7 +38,7 @@ Real authentication/provider credentials and cloud provisioning must be availabl
 
 ## Notes
 
-The account/storage boundary merged in PR #28, conversation API/transactional commands in PR #29 and text generation in PR #30. Realtime is implemented in PR #31 with 58 local tests, separate-process smoke and an isolated actual-container Gemini/completion/restart proof. Review corrections and actual merge remain the next gate before workspace #22 consumes its browser connection/reducer interface. All workspace/voice/diagnostic/regression/deployment criteria stay open. Railway remains deferred to #26, Vapi stays free, and the user's temporary hosted-CI exception preserves reviewed local gates.
+The account/storage boundary merged in PR #28, conversation API/transactional commands in PR #29 and text generation in PR #30. Realtime is implemented in PR #31 with 61 local tests, separate-process smoke and an isolated actual-container Gemini/completion/restart proof. Independent reviews verified the corrections; actual merge remains the next gate before workspace #22 consumes its browser connection/reducer interface. All workspace/voice/diagnostic/regression/deployment criteria stay open. Railway remains deferred to #26, Vapi stays free, and the user's temporary hosted-CI exception preserves reviewed local gates.
 
 ## Follow-ups
 
