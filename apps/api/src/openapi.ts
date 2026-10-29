@@ -114,7 +114,12 @@ const pagination = [
     in: "query",
     description:
       "Opaque cursor scoped to this resource/filter. Message pages return ascending items and a cursor for older history.",
-    schema: { type: "string", maxLength: 1024 },
+    schema: {
+      type: "string",
+      minLength: 1,
+      maxLength: 1024,
+      pattern: "^[A-Za-z0-9_-]+$",
+    },
   },
 ]
 const secure = { security: [{ ClerkBearer: [] }] }
@@ -128,7 +133,13 @@ const closed = (properties: Record<string, unknown>, required: string[]) => ({
   properties,
   required,
 })
-const title = { type: "string", minLength: 1, maxLength: 120, pattern: "\\S" }
+const title = {
+  type: "string",
+  minLength: 1,
+  maxLength: 120,
+  pattern: "\\S",
+  not: { pattern: "\\u0000" },
+}
 export const openapi = {
   openapi: "3.1.0",
   info: {
@@ -294,6 +305,7 @@ export const openapi = {
                 type: "string",
                 minLength: 1,
                 maxLength: 16000,
+                not: { pattern: "\\u0000" },
                 pattern: "\\S",
               },
             },

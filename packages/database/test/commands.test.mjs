@@ -681,3 +681,73 @@ test("keyset pages retain microseconds, ties, account/filter scope and latest-fi
     0
   )
 })
+
+test("new server-side mutations canonicalize UUIDs before producing events", async (t) => {
+  const { pool, store, owner, conversation } = await setup(t)
+  const accountId = owner.id.toUpperCase()
+  const conversationId = conversation.id.toUpperCase()
+  const admitted = await store.commands.submitText(
+    accountId,
+    conversationId,
+    randomUUID(),
+    "New uppercase admission"
+  )
+  assert.equal(admitted.conversationId, conversation.id)
+  await store.commands.finalize(
+    accountId,
+    conversationId,
+    admitted.operationId,
+    { state: "failed", content: "" }
+  )
+  const retried = await store.commands.retry(
+    accountId,
+    conversationId,
+    admitted.operationId,
+    randomUUID()
+  )
+  assert.equal(retried.conversationId, conversation.id)
+  assert.equal(retried.userMessageId, admitted.userMessageId)
+
+  const unmanaged = await store.createConversation(owner.id)
+  const [message] = await store.appendMessages(
+    accountId,
+    unmanaged.id.toUpperCase(),
+    [
+      {
+        role: "user",
+        modality: "text",
+        content: "Uppercase append",
+        state: "completed",
+      },
+    ]
+  )
+  await store.updateMessage(accountId, unmanaged.id.toUpperCase(), message.id, {
+    content: "Uppercase update",
+    state: "completed",
+  })
+  await store.updateConversation(accountId, unmanaged.id.toUpperCase(), {
+    title: "Canonical event",
+  })
+
+  const voice = await store.createConversation(owner.id)
+  const finalized = await store.commands.persistFinalMessage(
+    accountId,
+    voice.id.toUpperCase(),
+    {
+      deliveryId: randomUUID(),
+      role: "user",
+      modality: "voice",
+      content: "Uppercase finalized voice",
+    }
+  )
+  assert.equal(finalized.conversationId, voice.id)
+  const events = await pool.query(
+    "SELECT payload FROM handoffs WHERE kind='event'"
+  )
+  for (const { payload } of events.rows) {
+    const event = domainEventSchema.parse(payload)
+    assert.equal(event.conversationId, event.conversationId.toLowerCase())
+    if ("message" in event.payload)
+      assert.equal(event.payload.message.conversationId, event.conversationId)
+  }
+})

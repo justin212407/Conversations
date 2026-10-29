@@ -50,6 +50,16 @@ export function createApi(
   logStream?: { write: (message: string) => void }
 ): ReturnType<typeof createHealthServer> {
   const app = createHealthServer(config, resources, logStream)
+  // CORS sends its own plain-text error for malformed preflights. Validate
+  // before that hook so these failures use the same safe JSON envelope.
+  app.addHook("onRequest", async (request) => {
+    if (
+      request.method === "OPTIONS" &&
+      (!request.headers.origin ||
+        !request.headers["access-control-request-method"])
+    )
+      throw new InvalidInput()
+  })
   app.register(cors, {
     origin: auth?.authorizedParties ?? [],
     methods: ["GET", "HEAD", "POST", "PATCH", "DELETE"],

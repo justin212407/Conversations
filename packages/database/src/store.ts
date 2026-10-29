@@ -156,11 +156,15 @@ export class ConversationStore {
       if (!updated) throw new ResourceNotFound()
       await appendEvent(
         tx,
-        conversationId,
+        updated.id,
         updated.status === "deleted"
           ? "conversation.deleted"
           : "conversation.updated",
-        { conversationId, title: updated.title, status: updated.status }
+        {
+          conversationId: updated.id,
+          title: updated.title,
+          status: updated.status,
+        }
       )
       return updated
     })
@@ -280,7 +284,7 @@ export class ConversationStore {
         message.state === "pending" || message.state === "streaming"
           ? "message.created"
           : (`message.${message.state}` as const)
-      await appendEvent(tx, conversationId, type, {
+      await appendEvent(tx, message.conversationId, type, {
         message: messageData(message),
       })
       return message

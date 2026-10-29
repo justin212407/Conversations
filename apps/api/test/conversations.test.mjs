@@ -523,3 +523,33 @@ test("HTTP acknowledgements fail safely and roll back when durable handoff is un
     202
   )
 })
+
+test("router decoding and malformed preflight errors use safe JSON without query credentials", async (t) => {
+  const api = await createConversationApi(t)
+  const secret = "synthetic-sensitive-ticket"
+  const malformed = await api.app.inject({
+    method: "GET",
+    url: "/v1/conversations/%XX?token=" + secret,
+  })
+  error(malformed, 400, "INVALID_INPUT")
+  assert.ok(!malformed.body.includes(secret))
+  for (const headers of [
+    {},
+    { origin: frontendOrigin },
+    { "access-control-request-method": "GET" },
+  ]) {
+    const result = await api.app.inject({
+      method: "OPTIONS",
+      url: "/v1/conversations?token=" + secret,
+      headers,
+    })
+    error(result, 400, "INVALID_INPUT")
+    assert.ok(!result.body.includes(secret))
+  }
+  assert.ok(!api.logs.join("").includes(secret))
+  assert.equal(
+    (await api.pool.query("SELECT count(*)::int AS count FROM accounts"))
+      .rows[0].count,
+    0
+  )
+})

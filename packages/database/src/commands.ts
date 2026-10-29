@@ -112,7 +112,7 @@ export async function appendMessages(
   for (const message of rows)
     await appendEvent(
       tx,
-      conversationId,
+      message.conversationId,
       message.state === "completed" ? "message.completed" : "message.created",
       { message: messageData(message) }
     )
@@ -194,15 +194,13 @@ export class ConversationCommands {
       inputMessageId,
       correlation: { requestId: correlation },
     })
-    await tx
-      .insert(handoffs)
-      .values({
-        kind: "job",
-        conversationId: conversation.id,
-        operationId: operation.id,
-        type: "text.generate",
-        payload: job,
-      })
+    await tx.insert(handoffs).values({
+      kind: "job",
+      conversationId: conversation.id,
+      operationId: operation.id,
+      type: "text.generate",
+      payload: job,
+    })
     await appendEvent(tx, conversation.id, "operation.accepted", {
       operation: admission(operation),
     })
@@ -618,14 +616,12 @@ export class ConversationCommands {
           },
         ])
         if (!message) throw new Error("Finalized message persistence failed")
-        await tx
-          .insert(finalizedDeliveries)
-          .values({
-            conversationId,
-            deliveryId: input.deliveryId,
-            payloadHash: expected,
-            messageId: message.id,
-          })
+        await tx.insert(finalizedDeliveries).values({
+          conversationId,
+          deliveryId: input.deliveryId,
+          payloadHash: expected,
+          messageId: message.id,
+        })
         return message
       }
     )
