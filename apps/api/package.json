@@ -16,7 +16,8 @@
     "@conversations/database": "workspace:^",
     "@conversations/service-runtime": "workspace:*",
     "@conversations/shared": "workspace:*",
-    "@fastify/cors": "11.3.1"
+    "@fastify/cors": "11.3.1",
+    "ioredis": "6.0.0"
   },
   "devDependencies": {
     "@types/node": "^22.18.0",

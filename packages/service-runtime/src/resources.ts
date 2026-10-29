@@ -6,7 +6,7 @@ import type { Resources, Dependency } from "./health.js"
 
 export function createResources(
   config: ServiceConfig
-): Resources & { postgres?: pg.Pool } {
+): Resources & { postgres?: pg.Pool; redis: Redis } {
   const redis = new Redis({
     ...redisConnectionOptions(config.REDIS_URL),
     lazyConnect: true,
@@ -36,6 +36,7 @@ export function createResources(
   if (pool)
     dependencies.push({ name: "postgres", check: () => pool.query("SELECT 1") })
   return {
+    redis,
     postgres: pool,
     dependencies,
     async close() {

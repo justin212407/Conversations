@@ -402,7 +402,14 @@ test("OpenAPI describes actual routes and CORS permits only configured frontend 
   )
   assert.ok(document.paths["/health/ready"].get.responses["503"])
   for (const path of Object.keys(document.paths))
-    assert.ok(!/voice|realtime|providers/.test(path))
+    assert.ok(!/voice|providers/.test(path))
+  assert.ok(document.paths["/v1/realtime-tickets"].post.responses["201"])
+  assert.ok(
+    document.paths["/v1/conversations/{id}/snapshot"].get.responses["200"]
+  )
+  assert.deepEqual(document.paths["/internal/realtime/redeem"].post.security, [
+    { RealtimeService: [] },
+  ])
   assert.equal(
     document.paths["/v1/conversations"].post.requestBody.content[
       "application/json"

@@ -5,7 +5,7 @@ import { loadConfig } from "@conversations/service-runtime"
 import { createTestDatabase } from "../../../packages/database/test/database-fixture.mjs"
 
 export const frontendOrigin = "http://localhost:3000"
-export async function createConversationApi(t) {
+export async function createConversationApi(t, options = {}) {
   const database = await createTestDatabase()
   let app
   t.after(async () => {
@@ -30,7 +30,7 @@ export async function createConversationApi(t) {
       iss: auth.issuer,
       iat: now,
       nbf: now - 1,
-      exp: now + 300,
+      exp: now + (options.tokenSeconds ?? 300),
     })
       .setProtectedHeader({
         alg: "RS256",
@@ -50,7 +50,8 @@ export async function createConversationApi(t) {
     { dependencies: [], close: async () => {} },
     store,
     auth,
-    { write: (value) => logs.push(value) }
+    { write: (value) => logs.push(value) },
+    options.realtime?.(store, auth)
   )
   const request = (method, url, payload, actor = "alice", headers = {}) =>
     app.inject({

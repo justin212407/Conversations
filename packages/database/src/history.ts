@@ -1,10 +1,11 @@
 import { createHash } from "node:crypto"
 import { and, desc, eq, lt, ne, sql } from "drizzle-orm"
 import { getTableColumns } from "drizzle-orm"
-import type { Database } from "./access.js"
+import type { Database, Transaction } from "./access.js"
 import { withOwnedConversation } from "./access.js"
 import { InvalidInput, isUuid } from "./errors.js"
 import { conversations, messages, operations } from "./schema.js"
+import { admission } from "./commands.js"
 
 const encode = (value: Record<string, unknown>) =>
   Buffer.from(JSON.stringify(value)).toString("base64url")
@@ -141,41 +142,85 @@ export class ConversationHistory {
       accountId,
       conversationId,
       async (tx) => {
-        const rows = await tx
-          .select({
-            ...getTableColumns(messages),
-            operationId: operations.id,
-            failureCode: operations.failureCode,
+        return this.messagePage(tx, accountId, conversationId, count, before)
+      }
+    )
+  }
+  private async messagePage(
+    tx: Transaction,
+    accountId: string,
+    conversationId: string,
+    count: number,
+    before?: number
+  ) {
+    const rows = await tx
+      .select({
+        ...getTableColumns(messages),
+        operationId: operations.id,
+        failureCode: operations.failureCode,
+      })
+      .from(messages)
+      .leftJoin(
+        operations,
+        and(
+          eq(operations.conversationId, messages.conversationId),
+          eq(operations.assistantMessageId, messages.id)
+        )
+      )
+      .where(
+        and(
+          eq(messages.conversationId, conversationId),
+          before ? lt(messages.sequence, before) : undefined
+        )
+      )
+      .orderBy(desc(messages.sequence))
+      .limit(count + 1)
+    const selected = rows.slice(0, count)
+    const last = selected.at(-1)
+    const nextCursor =
+      rows.length > count && last
+        ? encode({
+            v: 1,
+            kind: "messages",
+            scope: scope(accountId),
+            conversationId: conversationId.toLowerCase(),
+            before: last.sequence,
           })
-          .from(messages)
-          .leftJoin(
-            operations,
-            and(
-              eq(operations.conversationId, messages.conversationId),
-              eq(operations.assistantMessageId, messages.id)
-            )
-          )
+        : null
+    return { items: selected.reverse(), nextCursor }
+  }
+  async snapshot(
+    accountId: string,
+    conversationId: string,
+    options: { limit?: number } = {}
+  ) {
+    const count = limit(options.limit)
+    return withOwnedConversation(
+      this.db,
+      accountId,
+      conversationId,
+      async (tx, conversation) => {
+        const page = await this.messagePage(
+          tx,
+          accountId,
+          conversation.id,
+          count
+        )
+        const [operation] = await tx
+          .select()
+          .from(operations)
           .where(
             and(
-              eq(messages.conversationId, conversationId),
-              before ? lt(messages.sequence, before) : undefined
+              eq(operations.conversationId, conversation.id),
+              sql`${operations.status} in ('pending','running')`
             )
           )
-          .orderBy(desc(messages.sequence))
-          .limit(count + 1)
-        const selected = rows.slice(0, count)
-        const last = selected.at(-1)
-        const nextCursor =
-          rows.length > count && last
-            ? encode({
-                v: 1,
-                kind: "messages",
-                scope: scope(accountId),
-                conversationId: conversationId.toLowerCase(),
-                before: last.sequence,
-              })
-            : null
-        return { items: selected.reverse(), nextCursor }
+        return {
+          conversation,
+          activeOperation: operation ? admission(operation) : null,
+          messages: page,
+          checkpoint: conversation.nextEventSequence,
+        }
       }
     )
   }

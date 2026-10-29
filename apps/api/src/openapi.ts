@@ -165,6 +165,98 @@ export const openapi = {
       "Durable personal conversations and asynchronous text generation. Accepted operations execute through the separate worker; sockets and voice orchestration remain planned.",
   },
   paths: {
+    "/v1/realtime-tickets": {
+      post: {
+        ...secure,
+        operationId: "createRealtimeTicket",
+        description:
+          "Origin-bound one-use ticket, valid at most60 seconds and no longer than the verified session JWT. Clerk tokens never enter socket URLs.",
+        requestBody: request(
+          closed({ conversationId: uuid }, ["conversationId"]),
+          { conversationId: exampleId }
+        ),
+        responses: {
+          ...errors,
+          "201": response("One-use socket capability", ref("RealtimeTicket"), {
+            ticket: "a".repeat(43),
+            url: "ws://localhost:4301/v1/connect?ticket=" + "a".repeat(43),
+            expiresAt: "2026-10-29T00:01:00.000Z",
+          }),
+        },
+      },
+    },
+    "/v1/conversations/{id}/snapshot": {
+      parameters: [parameter("id")],
+      get: {
+        ...secure,
+        operationId: "getConversationSnapshot",
+        description:
+          "Atomic owned conversation, active operation, latest message page and durable checkpoint. Subscribe before fetching; reconcile contiguous later events afterward.",
+        parameters: [pagination[0]],
+        responses: {
+          ...errors,
+          "200": response(
+            "Consistent recovery snapshot",
+            ref("ConversationSnapshot"),
+            {
+              conversation: exampleConversation,
+              activeOperation: null,
+              messages: schemaExamples.MessagePage,
+              checkpoint: 1,
+            }
+          ),
+        },
+      },
+    },
+    ...Object.fromEntries(
+      (["redeem", "check", "release"] as const).map((action) => [
+        "/internal/realtime/" + action,
+        {
+          post: {
+            security: [{ RealtimeService: [] }],
+            operationId: "internalRealtime" + action,
+            description:
+              "Server-only API authorization boundary. Requires a separate service secret; no browser capability or Clerk bypass.",
+            requestBody: request(
+              action === "redeem"
+                ? closed(
+                    {
+                      ticket: {
+                        type: "string",
+                        pattern: "^[A-Za-z0-9_-]{43}$",
+                      },
+                      origin: { type: "string", format: "uri" },
+                    },
+                    ["ticket", "origin"]
+                  )
+                : closed({ connectionId: uuid }, ["connectionId"]),
+              action === "redeem"
+                ? { ticket: "a".repeat(43), origin: "http://localhost:3000" }
+                : { connectionId: exampleId }
+            ),
+            responses: {
+              ...errors,
+              "200": response(
+                action === "release"
+                  ? "Released ephemeral grant"
+                  : "Verified scoped connection grant",
+                action === "release"
+                  ? closed({ released: { const: true } }, ["released"])
+                  : ref("RealtimeGrant"),
+                action === "release"
+                  ? { released: true }
+                  : {
+                      connectionId: exampleId,
+                      accountId: exampleId,
+                      conversationId: exampleId,
+                      expiresAt: "2026-10-29T00:01:00.000Z",
+                    }
+              ),
+            },
+          },
+        },
+      ])
+    ),
     "/openapi.json": {
       get: {
         operationId: "getOpenApi",
@@ -375,6 +467,11 @@ export const openapi = {
   },
   components: {
     securitySchemes: {
+      RealtimeService: {
+        type: "http",
+        scheme: "bearer",
+        bearerFormat: "Server-only internal service secret",
+      },
       ClerkBearer: {
         type: "http",
         scheme: "bearer",
@@ -382,6 +479,32 @@ export const openapi = {
       },
     },
     schemas: {
+      RealtimeTicket: closed(
+        {
+          ticket: { type: "string", pattern: "^[A-Za-z0-9_-]{43}$" },
+          url: { type: "string", format: "uri" },
+          expiresAt: timestamp,
+        },
+        ["ticket", "url", "expiresAt"]
+      ),
+      RealtimeGrant: closed(
+        {
+          connectionId: uuid,
+          accountId: uuid,
+          conversationId: uuid,
+          expiresAt: timestamp,
+        },
+        ["connectionId", "accountId", "conversationId", "expiresAt"]
+      ),
+      ConversationSnapshot: closed(
+        {
+          conversation: ref("Conversation"),
+          activeOperation: { anyOf: [ref("Admission"), { type: "null" }] },
+          messages: ref("MessagePage"),
+          checkpoint: { type: "integer", minimum: 0 },
+        },
+        ["conversation", "activeOperation", "messages", "checkpoint"]
+      ),
       Error: closed(
         {
           error: closed(

@@ -268,3 +268,76 @@ export const provisionalChannel = (conversationId: string) => {
     throw new Error("Invalid conversation identity")
   return "conversations:snapshots:" + conversationId.toLowerCase()
 }
+
+export const durableChannel = (conversationId: string) => {
+  if (!z.string().uuid().safeParse(conversationId).success)
+    throw new Error("Invalid conversation identity")
+  return "conversations:events:" + conversationId.toLowerCase()
+}
+export const MAX_REALTIME_FRAME_BYTES = 512 * 1024
+export const MAX_REALTIME_BUFFER_BYTES = 2 * 1024 * 1024
+export const realtimeClientControlSchema = z
+  .object({ version: z.literal(1), type: z.enum(["subscribe", "unsubscribe"]) })
+  .strict()
+export const realtimeServerControlSchema = z
+  .object({
+    version: z.literal(1),
+    type: z.enum(["connection.ready", "connection.unsubscribed"]),
+    connectionId: z.string().uuid(),
+    conversationId: z.string().uuid(),
+    expiresAt: z.string().datetime(),
+  })
+  .strict()
+export const realtimeGrantSchema = z
+  .object({
+    connectionId: z.string().uuid(),
+    accountId: z.string().uuid(),
+    conversationId: z.string().uuid(),
+    expiresAt: z.string().datetime(),
+  })
+  .strict()
+export const conversationSnapshotSchema = z
+  .object({
+    conversation: z
+      .object({
+        id: z.string().uuid(),
+        title: z.string(),
+        status: z.enum(["active", "archived"]),
+        createdAt: z.string().datetime(),
+        updatedAt: z.string().datetime(),
+      })
+      .strict(),
+    activeOperation: operationAdmissionSchema.nullable(),
+    messages: z
+      .object({
+        items: z.array(messageDataSchema),
+        nextCursor: z.string().nullable(),
+      })
+      .strict(),
+    checkpoint: z.number().int().nonnegative(),
+  })
+  .strict()
+  .superRefine((snapshot, ctx) => {
+    if (
+      snapshot.messages.items.some(
+        (message) => message.conversationId !== snapshot.conversation.id
+      ) ||
+      (snapshot.activeOperation &&
+        snapshot.activeOperation.conversationId !== snapshot.conversation.id)
+    )
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Snapshot scope mismatch",
+      })
+  })
+export type ConversationSnapshot = z.infer<typeof conversationSnapshotSchema>
+export {
+  initialConversationState,
+  applyConversationEvent,
+  applyProvisionalSnapshot,
+  reconcileConversation,
+  disconnectConversation,
+  reconnectDelay,
+  createConversationConnection,
+  type ConversationState,
+} from "./realtime-client.js"
