@@ -1,7 +1,23 @@
-import { and, asc, eq, ne, sql } from "drizzle-orm"
+import { and, asc, eq, inArray, or, sql } from "drizzle-orm"
 import { drizzle, type NodePgDatabase } from "drizzle-orm/node-postgres"
 import type { Pool } from "pg"
 import * as schema from "./schema.js"
+import { withOwnedConversation } from "./access.js"
+import {
+  ConversationCommands,
+  appendMessages as insertMessages,
+} from "./commands.js"
+import { ConversationHistory } from "./history.js"
+import { DurableHandoff } from "./handoff.js"
+import { appendEvent, messageData } from "./events.js"
+import {
+  ResourceNotFound,
+  ConversationConflict,
+  InvalidInput,
+  InputLimitExceeded,
+  isUuid,
+} from "./errors.js"
+export { ResourceNotFound, ConversationConflict } from "./errors.js"
 
 type Database = NodePgDatabase<typeof schema>
 type Transaction = Parameters<Parameters<Database["transaction"]>[0]>[0]
@@ -13,24 +29,17 @@ export type NewMessage = Pick<
   "role" | "modality" | "content" | "state"
 > & { id?: string }
 
-export class ResourceNotFound extends Error {
-  constructor() {
-    super("Resource not found")
-  }
-}
-export class ConversationConflict extends Error {
-  constructor() {
-    super("Conversation is not active")
-  }
-}
-
-const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-
 /** All public data methods scope resources to an internal, authenticated account. */
 export class ConversationStore {
   private readonly db: Database
+  readonly commands: ConversationCommands
+  readonly history: ConversationHistory
+  readonly handoff: DurableHandoff
   constructor(pool: Pool) {
     this.db = drizzle(pool, { schema })
+    this.commands = new ConversationCommands(this.db)
+    this.history = new ConversationHistory(this.db)
+    this.handoff = new DurableHandoff(this.db)
   }
 
   async provisionAccount(clerkSubject: string): Promise<Account> {
@@ -55,14 +64,20 @@ export class ConversationStore {
     accountId: string,
     title = "New conversation"
   ): Promise<Conversation> {
-    if (!title.trim() || title.length > 120)
-      throw new Error("Invalid conversation title")
-    const [conversation] = await this.db
-      .insert(schema.conversations)
-      .values({ accountId, title })
-      .returning()
-    if (!conversation) throw new Error("Conversation creation failed")
-    return conversation
+    if (typeof title !== "string" || !title.trim() || title.includes("\u0000"))
+      throw new InvalidInput()
+    if ([...title].length > 120) throw new InputLimitExceeded()
+    return this.db.transaction(async (tx) => {
+      const [conversation] = await tx
+        .insert(schema.conversations)
+        .values({ accountId, title })
+        .returning()
+      if (!conversation) throw new Error("Conversation creation failed")
+      await appendEvent(tx, conversation.id, "conversation.created", {
+        conversationId: conversation.id,
+      })
+      return conversation
+    })
   }
 
   private async withConversation<T>(
@@ -70,23 +85,7 @@ export class ConversationStore {
     conversationId: string,
     run: (tx: Transaction, conversation: Conversation) => Promise<T>
   ): Promise<T> {
-    if (!uuid.test(accountId) || !uuid.test(conversationId))
-      throw new ResourceNotFound()
-    return this.db.transaction(async (tx) => {
-      const [conversation] = await tx
-        .select()
-        .from(schema.conversations)
-        .where(
-          and(
-            eq(schema.conversations.id, conversationId),
-            eq(schema.conversations.accountId, accountId),
-            ne(schema.conversations.status, "deleted")
-          )
-        )
-        .for("update")
-      if (!conversation) throw new ResourceNotFound()
-      return run(tx, conversation)
-    })
+    return withOwnedConversation(this.db, accountId, conversationId, run)
   }
 
   async getConversation(
@@ -114,18 +113,38 @@ export class ConversationStore {
     conversationId: string,
     patch: { title?: string; status?: Conversation["status"] }
   ): Promise<Conversation> {
+    if (patch.title !== undefined) {
+      if (
+        typeof patch.title !== "string" ||
+        !patch.title.trim() ||
+        patch.title.includes("\u0000")
+      )
+        throw new InvalidInput()
+      if ([...patch.title].length > 120) throw new InputLimitExceeded()
+    }
     if (
-      patch.title !== undefined &&
-      (!patch.title.trim() || patch.title.length > 120)
+      patch.status !== undefined &&
+      !["active", "archived", "deleted"].includes(patch.status)
     )
-      throw new Error("Invalid conversation title")
+      throw new InvalidInput()
     return this.withConversation(accountId, conversationId, async (tx) => {
+      const busy = await tx
+        .select({ id: schema.operations.id })
+        .from(schema.operations)
+        .where(
+          and(
+            eq(schema.operations.conversationId, conversationId),
+            inArray(schema.operations.status, ["pending", "running"])
+          )
+        )
+        .limit(1)
+      if (busy.length) throw new ConversationConflict()
       const [updated] = await tx
         .update(schema.conversations)
         .set({
           title: patch.title,
           status: patch.status,
-          updatedAt: new Date(),
+          updatedAt: sql`clock_timestamp()`,
         })
         .where(
           and(
@@ -135,6 +154,18 @@ export class ConversationStore {
         )
         .returning()
       if (!updated) throw new ResourceNotFound()
+      await appendEvent(
+        tx,
+        updated.id,
+        updated.status === "deleted"
+          ? "conversation.deleted"
+          : "conversation.updated",
+        {
+          conversationId: updated.id,
+          title: updated.title,
+          status: updated.status,
+        }
+      )
       return updated
     })
   }
@@ -151,29 +182,18 @@ export class ConversationStore {
       conversationId,
       async (tx, conversation) => {
         if (conversation.status !== "active") throw new ConversationConflict()
-        const [counter] = await tx
-          .update(schema.conversations)
-          .set({
-            nextMessageSequence: sql`${schema.conversations.nextMessageSequence} + ${input.length}`,
-            updatedAt: new Date(),
-          })
-          .where(eq(schema.conversations.id, conversationId))
-          .returning({ end: schema.conversations.nextMessageSequence })
-        if (!counter) throw new ResourceNotFound()
-        return tx
-          .insert(schema.messages)
-          .values(
-            input.map((message, index) => ({
-              id: message.id,
-              role: message.role,
-              modality: message.modality,
-              content: message.content,
-              state: message.state,
-              conversationId,
-              sequence: counter.end - input.length + index + 1,
-            }))
+        const busy = await tx
+          .select({ id: schema.operations.id })
+          .from(schema.operations)
+          .where(
+            and(
+              eq(schema.operations.conversationId, conversationId),
+              inArray(schema.operations.status, ["pending", "running"])
+            )
           )
-          .returning()
+          .limit(1)
+        if (busy.length) throw new ConversationConflict()
+        return insertMessages(tx, conversationId, input)
       }
     )
   }
@@ -183,7 +203,7 @@ export class ConversationStore {
     conversationId: string,
     messageId: string
   ): Promise<Message> {
-    if (!uuid.test(messageId)) throw new ResourceNotFound()
+    if (!isUuid(messageId)) throw new ResourceNotFound()
     return this.withConversation(accountId, conversationId, async (tx) => {
       const [message] = await tx
         .select()
@@ -219,8 +239,32 @@ export class ConversationStore {
     messageId: string,
     patch: Pick<Message, "content" | "state">
   ): Promise<Message> {
-    if (!uuid.test(messageId)) throw new ResourceNotFound()
+    if (!isUuid(messageId)) throw new ResourceNotFound()
     return this.withConversation(accountId, conversationId, async (tx) => {
+      const managed = await tx
+        .select({ id: schema.operations.id })
+        .from(schema.operations)
+        .where(
+          and(
+            eq(schema.operations.conversationId, conversationId),
+            or(
+              eq(schema.operations.inputMessageId, messageId),
+              eq(schema.operations.assistantMessageId, messageId)
+            )
+          )
+        )
+        .limit(1)
+      const finalized = await tx
+        .select({ id: schema.finalizedDeliveries.id })
+        .from(schema.finalizedDeliveries)
+        .where(
+          and(
+            eq(schema.finalizedDeliveries.conversationId, conversationId),
+            eq(schema.finalizedDeliveries.messageId, messageId)
+          )
+        )
+        .limit(1)
+      if (managed.length || finalized.length) throw new ConversationConflict()
       const [message] = await tx
         .update(schema.messages)
         .set({
@@ -236,6 +280,13 @@ export class ConversationStore {
         )
         .returning()
       if (!message) throw new ResourceNotFound()
+      const type =
+        message.state === "pending" || message.state === "streaming"
+          ? "message.created"
+          : (`message.${message.state}` as const)
+      await appendEvent(tx, message.conversationId, type, {
+        message: messageData(message),
+      })
       return message
     })
   }

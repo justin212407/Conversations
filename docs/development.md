@@ -1,6 +1,6 @@
 # Local development
 
-The [Slice 1](slice-1.md) services provide API/worker/realtime processes, health checks, and a real queue probe. PostgreSQL/Drizzle persistence and Clerk-backed `/v1/me` add the personal-account boundary. Conversation HTTP routes, application WebSockets, generation, and the new UI remain subsequent issues; healthy infrastructure does not claim those features exist.
+The [Slice 1](slice-1.md) services provide API/worker/realtime processes, health checks, and a real queue probe. PostgreSQL/Drizzle and Clerk support personal accounts, owned conversation CRUD/history, durable text commands, and controlled retry. [Conversation API guidance](conversation-api.md) describes the implemented routes and server-only handoff/finalization interfaces; runtime OpenAPI is at `/openapi.json`. Model generation, application sockets, and the new UI remain subsequent issues.
 
 ## Prerequisites
 
@@ -54,7 +54,7 @@ The smoke check needs local PostgreSQL/Redis and compiled service output. It cre
 
 ## Migrations
 
-`packages/database` contains the Drizzle schema, generated SQL/snapshots/journal, and the explicit `pnpm services:migrate` command. Migration 0000 installs accounts; 0001 adds conversations/messages and lifecycle/ownership/order constraints. Apply committed migrations before service rollout. Concurrent runners serialize using a database advisory lock on one connection, with a 10-second lock timeout and 30-second statement timeout. Do not edit an applied migration; update the schema and run `pnpm --filter @conversations/database generate --name <change>` to generate the next migration.
+`packages/database` contains the Drizzle schema, generated SQL/snapshots/journal, and the explicit `pnpm services:migrate` command. Migration 0000 installs accounts; 0001 adds conversations/messages; 0002 adds operation/request identities, durable event/job handoff, and final-delivery receipts. The reviewed 0002 SQL creates prerequisite unique indexes before their composite foreign keys. Apply committed migrations before service rollout. Concurrent runners serialize using a database advisory lock on one connection, with a 10-second lock timeout and 30-second statement timeout. Do not edit an applied migration; update the schema and run `pnpm --filter @conversations/database generate --name <change>` to generate the next migration, then review its dependency ordering.
 
 API readiness verifies every expected migration hash and the required tables, while tolerating additive ahead migrations during a rolling deployment. Missing or altered history keeps readiness at 503. No command imports or removes old Convex data.
 
@@ -64,7 +64,7 @@ Configure `CLERK_JWT_ISSUER_DOMAIN` (the exact HTTPS Clerk issuer without a trai
 
 An entirely unconfigured development instance serves health endpoints but cannot provision an account: `/v1/me` returns 401 without a bearer credential and 503 if authentication is unavailable. Partial authentication settings and missing production settings stop startup. With valid settings, send the frontend's Clerk session token as `Authorization: Bearer ...` to `GET /v1/me`; its response contains only the internal account ID and creation/update timestamps. Repeated/concurrent sessions for the same verified subject resolve the same account. Machine tokens, invalid signatures, wrong issuers/parties, pending sessions, and expired tokens are rejected. JWKS/network outages return a generic 503 rather than exposing SDK diagnostics.
 
-The server-only `ConversationStore` scopes reads/writes/subscription authorization to that internal account. Mutation checks and writes share a conversation row lock; sequences are allocated in the same transaction as message insertion. These helpers are the boundary consumed by #19 and #21, not implemented conversation HTTP or WebSocket endpoints. Do not trust a client-supplied account ID. A live Clerk secret/issuer JWKS association was checked separately; deterministic JWT tests do not prove a real end-user session was issued.
+The server-only `ConversationStore` scopes reads/writes/subscription authorization to that internal account. Mutation checks and writes share a conversation row lock; message/event sequences are allocated in the same transaction as persistence and handoff. Implemented conversation routes consume this boundary; #21 will use it for actual subscription authorization. Do not trust a client-supplied account ID. A live Clerk secret/issuer JWKS association was checked separately; deterministic JWT tests do not prove a real end-user session was issued.
 
 ## Existing frontend during transition
 

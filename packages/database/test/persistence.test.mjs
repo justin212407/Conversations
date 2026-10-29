@@ -55,7 +55,7 @@ test("migrations install, upgrade, serialize and preserve the existing account",
           "SELECT count(*)::int AS count FROM drizzle.__drizzle_migrations"
         )
       ).rows[0].count,
-      2
+      journal.entries.length
     )
     await migrateDatabase(database.pool)
     const conversation = await store.createConversation(before.id)

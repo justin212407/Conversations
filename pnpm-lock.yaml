@@ -41,6 +41,9 @@ importers:
       '@conversations/shared':
         specifier: workspace:*
         version: link:../../packages/shared
+      '@fastify/cors':
+        specifier: 11.3.1
+        version: 11.3.1
     devDependencies:
       '@types/node':
         specifier: ^22.18.0
@@ -517,6 +520,9 @@ importers:
 
   packages/database:
     dependencies:
+      '@conversations/shared':
+        specifier: workspace:*
+        version: link:../shared
       drizzle-orm:
         specifier: 0.45.4
         version: 0.45.4(@opentelemetry/api@1.9.1)(@types/pg@8.23.1)(pg@8.23.1)
@@ -7381,6 +7387,12 @@ packages:
 
   js-cookie@3.0.8:
     resolution: {integrity: sha512-yeJd4aNAdYZQjaon2bpD/Gb0B/omw7HQOsynXXcOiWVCacbBcPlgn8S/d1X6blFSaHao7ozqtW7NZW19xpCtIw==}
+
+  '@fastify/cors@11.3.1':
+    resolution: {integrity: sha512-gZXNzd6FLHzOIfvoK4+Az3Wko2V6Y0MIsLxpyo4AEYl7a9q1JBPwPaxLea4nkr++8FCiJiPpYYo6E02uZW0dqw==}
+
+  fastify-plugin@6.0.1:
+    resolution: {integrity: sha512-4wW4RxSmvPXLrh5mgQEiu43qU3bw44N2ss4FTkTkQIbprUhE+/s43QX0j/ttcztdWK7PEkHqVthdc5GdEGDvjA==}
 
 snapshots:
 
@@ -14428,3 +14440,10 @@ snapshots:
   jose@6.2.13: {}
 
   js-cookie@3.0.8: {}
+
+  '@fastify/cors@11.3.1':
+    dependencies:
+      fastify-plugin: 6.0.1
+      toad-cache: 3.7.4
+
+  fastify-plugin@6.0.1: {}

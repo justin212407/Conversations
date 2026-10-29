@@ -1,4 +1,5 @@
-import Fastify, { type FastifyInstance } from "fastify"
+import Fastify, { type FastifyInstance, type FastifyReply } from "fastify"
+import { randomUUID } from "node:crypto"
 import type { HealthReport } from "@conversations/shared"
 import type { ServiceConfig } from "./config.js"
 
@@ -41,6 +42,20 @@ export function createHealthServer(
   logStream?: { write: (message: string) => void }
 ): FastifyInstance {
   const app = Fastify({
+    // Router decoding failures occur before the application's error handler.
+    // Never let the framework echo a malformed path or ticket-bearing query.
+    frameworkErrors(error, request, reply: FastifyReply) {
+      const invalid = error.code === "FST_ERR_BAD_URL"
+      reply.code(invalid ? 400 : 503).send({
+        error: {
+          code: invalid ? "INVALID_INPUT" : "DEPENDENCY_UNAVAILABLE",
+          message: invalid
+            ? "Invalid request"
+            : "Service temporarily unavailable",
+        },
+        requestId: request.id || randomUUID(),
+      })
+    },
     logger: {
       level: config.LOG_LEVEL,
       ...(logStream ? { stream: logStream } : {}),

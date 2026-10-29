@@ -54,6 +54,6 @@ export async function checkDatabaseSchema(pool: Pool): Promise<void> {
   )
     throw new Error("Database migrations are pending")
   await pool.query(
-    "SELECT a.id, c.id, m.id FROM accounts a, conversations c, messages m LIMIT 0"
+    "SELECT a.id, c.id, m.id, o.id, h.id, f.id FROM accounts a, conversations c, messages m, operations o, handoffs h, finalized_deliveries f LIMIT 0"
   )
 }

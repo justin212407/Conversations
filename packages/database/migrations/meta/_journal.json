@@ -15,6 +15,13 @@
       "when": 1793227524367,
       "tag": "0001_conversations",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793229062685,
+      "tag": "0002_durable-commands",
+      "breakpoints": true
     }
   ]
 }

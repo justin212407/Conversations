@@ -6,6 +6,8 @@ A verified Clerk subject maps to exactly one internal personal account. Caller-s
 
 A conversation has a stable UUID, account owner, title, timestamps, and status `active | archived | deleted`. Create/list/read/rename/archive/unarchive/soft-delete are supported. Deleted conversations are omitted from normal access. Only active conversations accept turns or voice sessions; a conflicting active operation returns 409.
 
+Rename, archive/unarchive, and soft-delete serialize against operation admission and return 409 while an operation is active. An expired text admission is recovered explicitly through controlled retry rather than silently starting a second user turn.
+
 Projects and agent runs are absent from Slice 1. Existing Convex data remains untouched.
 
 ## Messages and operations
