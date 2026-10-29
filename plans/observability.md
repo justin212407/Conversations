@@ -5,6 +5,7 @@ specs:
   - specs/architecture.md
   - specs/behaviors/service-foundation.md
   - specs/api/conversations.md
+  - specs/behaviors/observability.md
 issues: [24]
 ---
 
