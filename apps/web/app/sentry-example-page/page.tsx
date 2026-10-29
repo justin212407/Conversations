@@ -1,28 +1,28 @@
-"use client";
+"use client"
 
-import * as Sentry from "@sentry/nextjs";
-import Head from "next/head";
-import { useEffect, useState } from "react";
+import * as Sentry from "@sentry/nextjs"
+import Head from "next/head"
+import { useEffect, useState } from "react"
 
 class SentryExampleFrontendError extends Error {
   constructor(message: string | undefined) {
-    super(message);
-    this.name = "SentryExampleFrontendError";
+    super(message)
+    this.name = "SentryExampleFrontendError"
   }
 }
 
 export default function Page() {
-  const [hasSentError, setHasSentError] = useState(false);
-  const [isConnected, setIsConnected] = useState(true);
+  const [hasSentError, setHasSentError] = useState(false)
+  const [isConnected, setIsConnected] = useState(true)
 
   useEffect(() => {
-    Sentry.logger.info("Sentry example page loaded");
+    Sentry.logger.info("Sentry example page loaded")
     async function checkConnectivity() {
-      const result = await Sentry.diagnoseSdkConnectivity();
-      setIsConnected(result !== "sentry-unreachable");
+      const result = await Sentry.diagnoseSdkConnectivity()
+      setIsConnected(result !== "sentry-unreachable")
     }
-    checkConnectivity();
-  }, []);
+    checkConnectivity()
+  }, [])
 
   return (
     <div>
@@ -52,7 +52,7 @@ export default function Page() {
           Click the button below, and view the sample error on the Sentry{" "}
           <a
             target="_blank"
-            rel="noopener"
+            rel="noreferrer"
             href="https://justin-t7.sentry.io/issues/?project=4511466274881536"
           >
             Issues Page
@@ -60,7 +60,7 @@ export default function Page() {
           . For more details about setting up Sentry,{" "}
           <a
             target="_blank"
-            rel="noopener"
+            rel="noreferrer"
             href="https://docs.sentry.io/platforms/javascript/guides/nextjs/"
           >
             read our docs
@@ -71,22 +71,24 @@ export default function Page() {
         <button
           type="button"
           onClick={async () => {
-            Sentry.logger.info("User clicked the button, throwing a sample error");
+            Sentry.logger.info(
+              "User clicked the button, throwing a sample error"
+            )
             await Sentry.startSpan(
               {
                 name: "Example Frontend/Backend Span",
                 op: "test",
               },
               async () => {
-                const res = await fetch("/api/sentry-example-api");
+                const res = await fetch("/api/sentry-example-api")
                 if (!res.ok) {
-                  setHasSentError(true);
+                  setHasSentError(true)
                 }
-              },
-            );
+              }
+            )
             throw new SentryExampleFrontendError(
-              "This error is raised on the frontend of the example page.",
-            );
+              "This error is raised on the frontend of the example page."
+            )
           }}
           disabled={!isConnected}
         >
@@ -233,5 +235,5 @@ export default function Page() {
         }
       `}</style>
     </div>
-  );
+  )
 }

@@ -18,7 +18,7 @@ Loading, empty, unavailable, failed and reconnect states are visible and readabl
 
 ## Actions and recovery
 
-The composer accepts up to16000 Unicode code points, supports multiline Enter and Ctrl/Command+Enter submission, and exposes an accessible Send button. Only one active operation is admitted. Draft editing may continue while a response runs, but another turn cannot be sent until current state is known and admission is free. Oversized input/context errors are explicit; history is never silently removed to fit a model request.
+The composer accepts up to 16,000 Unicode code points, supports multiline Enter and Ctrl/Command+Enter submission, and exposes an accessible Send button. Only one active operation is admitted. Draft editing may continue while a response runs, but another turn cannot be sent until current state is known and admission is free. Oversized input/context errors are explicit; history is never silently removed to fit a model request.
 
 Each text/retry intent receives one UUID. An uncertain network/503 outcome retains exactly that identity and payload; checking delivery replays it rather than creating another user turn. A bounded session-local pending intent is scoped to the internal account/conversation and survives reload until acknowledged or definitively rejected; tokens and completed transcripts are not stored there. No duplicate optimistic user message is appended beside authoritative history. Controlled retry uses a new request UUID and the original failed operation, preserving its original user turn. Expired active operations expose explicit recovery instead of silently resubmitting.
 

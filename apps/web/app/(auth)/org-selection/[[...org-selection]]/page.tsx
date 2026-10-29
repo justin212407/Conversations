@@ -1,6 +1,6 @@
-import { OrgSelectionView } from "@/modules/auth/ui/views/org-selection-view";
+import { redirect } from "next/navigation"
 const Page = () => {
-    return (<OrgSelectionView />);
+  redirect("/conversations")
 }
- 
-export default Page;
+
+export default Page
