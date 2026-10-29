@@ -5,6 +5,7 @@ specs:
   - specs/architecture.md
   - specs/behaviors/conversation-lifecycle.md
   - specs/api/conversations.md
+  - specs/screens/workspace.md
 issues: [22]
 ---
 
