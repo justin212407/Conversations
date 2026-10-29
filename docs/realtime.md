@@ -1,0 +1,35 @@
+# Authenticated realtime delivery
+
+The API issues one-use conversation tickets and publishes durable events. The separate raw-WebSocket process authenticates through that API, subscribes to Redis and delivers application envelopes. It has no PostgreSQL dependency or conversation mutation path. Workspace UI integration belongs to #22; voice orchestration belongs to #23.
+
+## Browser flow
+
+Use the browser-safe `createConversationConnection` from `@conversations/shared` with an API URL, conversation UUID, Clerk `getToken` callback and `onChange` listener. `start` obtains a fresh ticket, opens the socket, waits for `connection.ready`, then fetches `GET /v1/conversations/:id/snapshot`. The snapshot contains the owned conversation, active operation, latest message page and durable checkpoint from one ownership-locked transaction. Incoming events remain buffered during that fetch. The transport applies the checkpoint and contiguous later events, deduplicates replayed sequences and reconciles gaps against REST history.
+
+`stop` releases the local transport. `unsubscribe` removes its Redis subscription while retaining the same scoped connection; `subscribe` rechecks that scope and takes a new reconciliation snapshot. Switching conversations creates a new connection/ticket. Connection phases are idle, connecting, reconciling, live, disconnected, unsubscribed and unavailable. These are local connection presence, not collaborative user presence. A deleted/inaccessible conversation clears cached state and stops automatic retries.
+
+Reconnect uses a fresh ticket and bounded exponential backoff with jitter (125ms–10s). Token retrieval, ticket requests, socket subscription acknowledgement and snapshot requests have bounded deadlines (default 10 seconds, configurable 100 milliseconds–30 seconds). Stale asynchronous work cannot overwrite a newer connection or continue after stop. Every restart or Redis pub/sub interruption closes affected sockets; no reconnect silently claims continuous event delivery.
+
+The pure helpers `initialConversationState`, `reconcileConversation`, `applyConversationEvent`, `applyProvisionalSnapshot` and `disconnectConversation` expose the same reducer without a browser UI. Provisional state uses message/operation/public-stream identity and increasing revision. A rename may advance durable checkpoint while text continues from an older observed checkpoint; that does not invalidate its partial output. Completed/failed/interrupted persisted messages dominate every late partial. Optional legacy event fields preserve known operation/failure metadata so a failed live assistant remains retryable without reload. Older history uses existing paginated REST cursors; a growing live window triggers fresh bounded reconciliation.
+
+## Tickets and access checks
+
+`POST /v1/realtime-tickets` accepts exactly `{ conversationId }`, with the verified Clerk bearer session and an exact allowed browser Origin. It returns 201 with an opaque ticket, socket URL and expiration. Ticket state is stored under a hashed Redis key for at most 60 seconds and never outlives the session JWT. Atomic GETDEL makes redemption one-use, including concurrent attempts. Ticket URLs never carry Clerk credentials.
+
+API and realtime share `REALTIME_INTERNAL_SECRET`, generated from at least 32 random bytes and kept server-only. Internal redeem/check/release endpoints require this separate credential; they do not grant unauthenticated user access. The API re-verifies signed session claims/expiry and owned nondeleted conversation access. Session bearer data remains only in server-side TTL Redis grant state, bounded by JWT expiry and a five-minute connection lease. It is never returned in socket controls/events or logged. Stateless Clerk JWT revocation can remain valid until expiry; no immediate upstream session-status check is claimed.
+
+Realtime checks access every 5 seconds by default, with a two-second API deadline and at most eight checks in flight. Unknown/expired/replayed/wrong-Origin tickets are rejected before upgrade. Later authorization failures close the socket; API/Redis failures fail closed. Hard session expiry closes the connection independently of polling. No browser message can change its account/conversation scope. Only strict version 1 subscribe/unsubscribe controls are accepted.
+
+## Publication, limits and cleanup
+
+The API relays validated PostgreSQL event handoffs to `durableChannel(conversationId)`, acknowledges only after Redis publication and preserves stable event IDs/sequences through replay. Publishing with no subscribers is safe because persisted history/checkpoints remain authoritative. Worker snapshots use the existing `provisionalChannel(conversationId)` seam. Realtime validates both contracts and their channel scope before fan-out.
+
+Limits support the existing 64000-code-point output contract: client controls 1024 bytes, server frames 512 KiB, unsent/reconciliation buffers 2 MiB/256 buffered frames, up to 100 sockets and 16 concurrent upgrades, and at most 20 client controls per second per socket. Slow/oversized clients close and reconcile rather than growing memory without bound. Ping/pong runs every 15 seconds by default; a missed response closes a stale socket. Unsubscribe/disconnect/shutdown remove subscriptions, timers, local presence and ephemeral grants; shutdown stops upgrades before resource closure.
+
+`REALTIME_PUBLIC_URL` defaults to `ws://localhost:4301/v1/connect` and requires WSS in production. `REALTIME_API_URL` points from realtime to the API (`http://api:4300` in Compose). `REALTIME_REDIS_PREFIX` isolates ephemeral ticket/grant keys and subscriber names. `REALTIME_ACCESS_CHECK_MS`/`REALTIME_HEARTBEAT_MS` tune bounded checks. `CLERK_AUTHORIZED_PARTIES` supplies the same exact frontend Origin allowlist to both services. Production rejects missing secrets/origins; unconfigured development serves health but cannot issue usable tickets. Never use `NEXT_PUBLIC_` for the internal secret or a Clerk backend credential.
+
+## Verification
+
+Real isolated PostgreSQL/Redis/WebSocket suites cover actual Clerk signature verification, concurrent one-use tickets, scope/Origin/privacy, event replay, maximum output, slow clients, heartbeat, expiry/access loss, subscription races, consistent snapshots, gaps/out-of-order events, late partials, browser deadlines and service/Redis restart recovery. Standalone smoke starts separate API/worker/realtime processes, signs a local fixture session, obtains a ticket and receives a durable event after checkpoint reconciliation. Synthetic fixtures require no live provider or Clerk credentials.
+
+Primary references: [raw ws upgrade/heartbeat/backpressure](https://github.com/websockets/ws/blob/master/doc/ws.md), [Redis GETDEL](https://redis.io/docs/latest/commands/getdel/) and [Redis pub/sub delivery semantics](https://redis.io/docs/latest/develop/pubsub/). Actual workspace/browser rendering, real-user session issuance, voice callbacks and Railway deployment are distinct remaining evidence.

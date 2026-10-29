@@ -80,6 +80,12 @@ export async function authenticateBearer(
   header: string | undefined,
   config: AuthConfig | undefined
 ): Promise<string> {
+  return (await authenticateSession(header, config)).subject
+}
+export async function authenticateSession(
+  header: string | undefined,
+  config: AuthConfig | undefined
+): Promise<{ subject: string; sessionId: string; expiresAt: number }> {
   const match = header?.match(/^Bearer ([^\s]+)$/i)
   if (!match?.[1] || match[1].length > 16384) throw new AuthenticationError()
   if (!config) throw new AuthenticationUnavailable()
@@ -104,7 +110,11 @@ export async function authenticateBearer(
       claims.iss !== config.issuer
     )
       throw new AuthenticationError()
-    return claims.sub
+    return {
+      subject: claims.sub,
+      sessionId: claims.sid,
+      expiresAt: claims.exp * 1000,
+    }
   } catch (error) {
     if (error instanceof AuthenticationError) throw error
     if (error instanceof TokenVerificationError) {

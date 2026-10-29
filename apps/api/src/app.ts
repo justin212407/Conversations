@@ -19,6 +19,7 @@ import {
 import { object, pageQuery, text, uuid } from "./validation.js"
 import { openapi } from "./openapi.js"
 import cors from "@fastify/cors"
+import type { RealtimeApi } from "./realtime.js"
 import {
   requestCorrelationSchema,
   type GenerationFailure,
@@ -66,7 +67,8 @@ export function createApi(
   resources: Resources,
   store: ConversationStore,
   auth: AuthConfig | undefined,
-  logStream?: { write: (message: string) => void }
+  logStream?: { write: (message: string) => void },
+  realtime?: RealtimeApi
 ): ReturnType<typeof createHealthServer> {
   const app = createHealthServer(config, resources, logStream)
   // CORS sends its own plain-text error for malformed preflights. Validate
@@ -131,6 +133,21 @@ export function createApi(
       .send({ error: { code, message }, requestId: request.id })
   })
   app.get("/openapi.json", async () => openapi)
+  for (const action of ["redeem", "check", "release"] as const)
+    app.post("/internal/realtime/" + action, async (request) => {
+      if (!realtime) throw new AuthenticationUnavailable()
+      realtime.authorizeInternal(request.headers.authorization)
+      object(request.query, [])
+      const body = object(
+        request.body,
+        action === "redeem" ? ["ticket", "origin"] : ["connectionId"]
+      )
+      if (action === "redeem") return realtime.redeem(body.ticket, body.origin)
+      const id = uuid(body.connectionId)
+      if (action === "check") return realtime.check(id)
+      await realtime.release(id)
+      return { released: true }
+    })
   app.register(async (user) => {
     const accounts = new WeakMap<
       object,
@@ -149,6 +166,39 @@ export function createApi(
       if (!account) throw new AuthenticationError()
       return account.id
     }
+    user.post("/v1/realtime-tickets", async (request, reply) => {
+      object(request.query, [])
+      const body = object(request.body, ["conversationId"])
+      if (!realtime) throw new AuthenticationUnavailable()
+      return reply
+        .code(201)
+        .send(
+          await realtime.issue(
+            accountId(request),
+            uuid(body.conversationId),
+            request.headers.origin,
+            request.headers.authorization
+          )
+        )
+    })
+    user.get("/v1/conversations/:id/snapshot", async (request) => {
+      const params = object(request.params, ["id"]),
+        query = object(request.query, ["limit"])
+      const options = pageQuery(query)
+      const snapshot = await store.history.snapshot(
+        accountId(request),
+        uuid(params.id),
+        options
+      )
+      return {
+        ...snapshot,
+        conversation: conversationProjection(snapshot.conversation),
+        messages: {
+          ...snapshot.messages,
+          items: snapshot.messages.items.map(messageProjection),
+        },
+      }
+    })
     user.get("/v1/me", async (request) => {
       const account = accounts.get(request)
       if (!account) throw new AuthenticationError()

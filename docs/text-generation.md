@@ -1,6 +1,6 @@
 # Durable text generation
 
-The API accepts a text operation transactionally, and the separate worker produces its assistant response. The current workspace UI and application WebSocket delivery remain downstream issues. Polling REST history already observes durable completion, failure and interruption.
+The API accepts a text operation transactionally, and the separate worker produces its assistant response. [Authenticated realtime delivery](realtime.md) consumes the worker snapshot/event contracts; the workspace UI remains #22. Polling REST history already observes durable completion, failure and interruption.
 
 ## Execution and recovery
 
@@ -28,7 +28,7 @@ Current primary references: [SDK streaming and configuration](https://github.com
 
 The worker publishes replaceable `message.snapshot` envelopes validated by `provisionalMessageSnapshotSchema` to the shared `provisionalChannel(conversationId)` Redis channel. Publication is best effort, throttled and limited to one in-flight publish; a Redis fan-out failure cannot prevent final database persistence. The payload contains message/operation/public-stream identity, increasing revision, streaming state and accumulated content. It never exposes the execution token.
 
-Envelope `sequence` is the last observed durable conversation checkpoint, possibly 0. It is not a newly allocated event sequence. Consumers order snapshots by stream/revision and give durable terminal state precedence over every late snapshot. Durable event relay and authenticated sockets are #21; browser reconciliation must use persisted REST history. Optional validated request/trace correlation crosses API, job, snapshots and terminal events. Full OpenTelemetry instrumentation belongs to #24.
+Envelope `sequence` is the last observed durable conversation checkpoint, possibly 0. It is not a newly allocated event sequence. Consumers order snapshots by stream/revision and give durable terminal state precedence over every late snapshot. Durable event relay and authenticated sockets are described in [realtime guidance](realtime.md); browser reconciliation must use persisted REST history. Optional validated request/trace correlation crosses API, job, snapshots and terminal events. Full OpenTelemetry instrumentation belongs to #24.
 
 ## Evidence
 

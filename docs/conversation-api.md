@@ -1,6 +1,6 @@
 # Durable conversation API
 
-The implemented API supports personal conversation CRUD, paginated history, durable text admission, and controlled retry. Runtime OpenAPI 3.1 is available at `GET /openapi.json`; it includes health and identity routes and omits unimplemented voice, realtime, and provider endpoints. Fastify also serves automatic HEAD responses for GET routes and CORS preflight outside user authentication.
+The implemented API supports personal conversation CRUD, paginated history, durable text admission, and controlled retry. Runtime OpenAPI 3.1 is available at `GET /openapi.json`; it includes health and identity routes and omits unimplemented voice and provider endpoints. Fastify also serves automatic HEAD responses for GET routes and CORS preflight outside user authentication.
 
 Use a real Clerk session token in `Authorization: Bearer ...`. The API derives the account from the verified session; account IDs supplied by clients do not select an owner. All user responses disable caching. Browser calls are permitted only from the configured Clerk frontend-origin allowlist, with Authorization/Content-Type and the implemented methods; no wildcard or credentialed-cookie CORS is enabled.
 
@@ -33,6 +33,10 @@ Request identities are scoped to the authenticated account. Exact replay returns
 
 To retry, send a new `{ clientRequestId }` to `POST /v1/conversations/:id/operations/:operationId/retry`. Failed/interrupted operations can admit a new assistant message and operation while reusing the original user message. The prior failed/interrupted assistant remains in history. Assistant history exposes nullable `operationId` and safe `failureCode`, so retry remains discoverable after reload even when `activeOperation` is null. Completed or non-expired active operations conflict. Initial text admission expires after five minutes; retrying an expired pending/running operation explicitly marks it interrupted and cancels its old job handoff before admitting the replacement. Merely reopening history does not silently start another operation.
 
+## Realtime tickets and reconciliation
+
+[Realtime guidance](realtime.md) describes the implemented one-use ticket, socket and browser recovery interfaces. POST /v1/realtime-tickets requires the verified session and an exact allowed Origin. GET /v1/conversations/:id/snapshot returns a consistent owned conversation/active operation/message page/checkpoint; subscribe first, then apply that snapshot and contiguous later events. Internal redeem/check/release routes use a separate server secret and never expose a Clerk bypass.
+
 ## Server-only handoff and finalization
 
 The server-only `ConversationStore` composes these interfaces:
@@ -51,4 +55,4 @@ The older general message helpers refuse changes to operation-managed/finalized-
 
 Real PostgreSQL tests cover generated migration upgrade, constraints, concurrent duplicates/admission/finalization, execution leases, expired recovery, failed handoff rollback, stable publication replay/order, finalized text/voice receipts, and high-precision pagination. API tests use signed local RSA sessions through the actual Clerk SDK, covering ownership, validation/errors, durable HTTP replay/retry, OpenAPI scope, and allowed/disallowed browser origins. They use unique temporary databases and no external provider credentials.
 
-Authenticated application sockets (#21), workspace UI (#22), provider orchestration/real voice evidence (#23), broader observability/security (#24), full regression/dependency scanning (#25), and deployment/cutover (#26) remain separately tracked. Hosted CI uses the user's temporary reviewed-local-check exception. Railway access does not gate these local features, and Vapi stays on its existing free plan.
+Workspace UI (#22), provider orchestration/real voice evidence (#23), broader observability/security (#24), full regression/dependency scanning (#25), and deployment/cutover (#26) remain separately tracked. Hosted CI uses the user's temporary reviewed-local-check exception. Railway access does not gate these local features, and Vapi stays on its existing free plan.

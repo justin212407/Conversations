@@ -1,6 +1,6 @@
 # Local development
 
-The [Slice 1](slice-1.md) services provide API/worker/realtime processes, health checks, and a real queue probe. PostgreSQL/Drizzle and Clerk support personal accounts, owned conversation CRUD/history, durable text generation, and controlled retry. [Conversation API guidance](conversation-api.md) describes the implemented routes and server-only handoff/finalization interfaces; runtime OpenAPI is at `/openapi.json`. [Text generation](text-generation.md) describes the separate Gemini worker and deterministic verification. Application sockets and the new UI remain subsequent issues.
+The [Slice 1](slice-1.md) services provide API/worker/realtime processes, health checks, and a real queue probe. PostgreSQL/Drizzle and Clerk support personal accounts, owned conversation CRUD/history, durable text generation, and controlled retry. [Conversation API guidance](conversation-api.md) describes the implemented routes and server-only handoff/finalization interfaces; runtime OpenAPI is at `/openapi.json`. [Text generation](text-generation.md) describes the separate Gemini worker and deterministic verification. [Authenticated realtime](realtime.md) provides socket delivery and browser recovery; workspace UI remains #22.
 
 ## Prerequisites
 
@@ -15,6 +15,7 @@ The [Slice 1](slice-1.md) services provide API/worker/realtime processes, health
 cp .env.example .env
 # Set TEXT_PROVIDER=deterministic for credential-free development.
 # For real generation, configure GOOGLE_GENERATIVE_AI_API_KEY instead.
+# Set REALTIME_INTERNAL_SECRET to a fresh secret shared by API/realtime.
 docker compose up --build -d
 docker compose ps
 curl --fail http://localhost:4300/health/ready
@@ -22,6 +23,8 @@ curl --fail http://localhost:4301/health/ready
 curl --fail http://localhost:4302/health/ready
 docker compose exec worker node apps/worker/dist/probe.js
 ```
+
+Generate REALTIME_INTERNAL_SECRET from at least 32 random bytes (base64url or hex) in your ignored .env; never commit or expose it to the browser. Runtime configuration fails closed for ticket issuance when absent. Compose passes it only to API/realtime.
 
 The API, realtime, and worker ports are 4300, 4301, and 4302. Host PostgreSQL is 55432 and Redis is 56379. `.env.example` documents port overrides. Published ports bind to loopback. Compose uses the isolated `conversations-slice1` project and named data volumes; it does not touch other projects or existing Convex data.
 
@@ -52,7 +55,7 @@ pnpm services:smoke
 pnpm services:probe
 ```
 
-The smoke check needs local PostgreSQL/Redis and compiled service output. It creates and migrates an isolated database, starts temporary service processes on free ports, checks real dependency/schema readiness, unauthenticated `/v1/me` rejection, and queue execution, verifies Redis startup outages and worker migration recovery, and confirms clean SIGTERM shutdown. It cleans up its child processes and temporary database. The standalone probe requires a running worker. `services:test` includes actual PostgreSQL ownership/concurrency/upgrade tests and signed local RSA fixtures through the real Clerk verification SDK; it includes deterministic real Redis/BullMQ worker integration and SDK SSE fixtures, without live provider secrets.
+The smoke check needs local PostgreSQL/Redis and compiled service output. It creates and migrates an isolated database, starts temporary service processes on free ports, checks real dependency/schema readiness, unauthenticated `/v1/me` rejection, and queue execution, exercises a signed ticket/socket/checkpoint flow in a separate realtime process, verifies Redis startup outages and worker migration recovery, and confirms clean SIGTERM shutdown. It cleans up its child processes and temporary database. The standalone probe requires a running worker. `services:test` includes actual PostgreSQL ownership/concurrency/upgrade tests and signed local RSA fixtures through the real Clerk verification SDK; it includes deterministic real Redis/BullMQ worker integration and SDK SSE fixtures, without live provider secrets.
 
 ## Migrations
 
@@ -66,7 +69,7 @@ Configure `CLERK_JWT_ISSUER_DOMAIN` (the exact HTTPS Clerk issuer without a trai
 
 An entirely unconfigured development instance serves health endpoints but cannot provision an account: `/v1/me` returns 401 without a bearer credential and 503 if authentication is unavailable. Partial authentication settings and missing production settings stop startup. With valid settings, send the frontend's Clerk session token as `Authorization: Bearer ...` to `GET /v1/me`; its response contains only the internal account ID and creation/update timestamps. Repeated/concurrent sessions for the same verified subject resolve the same account. Machine tokens, invalid signatures, wrong issuers/parties, pending sessions, and expired tokens are rejected. JWKS/network outages return a generic 503 rather than exposing SDK diagnostics.
 
-The server-only `ConversationStore` scopes reads/writes/subscription authorization to that internal account. Mutation checks and writes share a conversation row lock; message/event sequences are allocated in the same transaction as persistence and handoff. Implemented conversation routes consume this boundary; #21 will use it for actual subscription authorization. Do not trust a client-supplied account ID. A live Clerk secret/issuer JWKS association was checked separately; deterministic JWT tests do not prove a real end-user session was issued.
+The server-only `ConversationStore` scopes reads/writes/subscription authorization to that internal account. Mutation checks and writes share a conversation row lock; message/event sequences are allocated in the same transaction as persistence and handoff. Implemented conversation and socket authorization routes consume this boundary. Realtime rechecks signed-session expiry and current access through bounded internal API calls; stateless upstream revocation is bounded by JWT lifetime. Do not trust a client-supplied account ID. A live Clerk secret/issuer JWKS association was checked separately; deterministic JWT tests do not prove a real end-user session was issued.
 
 ## Existing frontend during transition
 

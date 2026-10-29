@@ -1,7 +1,7 @@
 import assert from "node:assert/strict"
 import { spawn } from "node:child_process"
 import { once } from "node:events"
-import { randomUUID } from "node:crypto"
+import { randomUUID, randomBytes, generateKeyPairSync, sign } from "node:crypto"
 import { createRequire } from "node:module"
 import { createServer } from "node:net"
 import { setTimeout as delay } from "node:timers/promises"
@@ -14,6 +14,34 @@ const { Queue } = createRequire(
   new URL("../apps/worker/package.json", import.meta.url)
 )("bullmq")
 const textQueuePrefixes = []
+const { WebSocket } = createRequire(
+  new URL("../apps/realtime/package.json", import.meta.url)
+)("ws")
+const signing = generateKeyPairSync("rsa", { modulusLength: 2048 })
+const issuer = "https://smoke.clerk.accounts.dev",
+  origin = "http://localhost:3000"
+const now = Math.floor(Date.now() / 1000)
+const encoded = (value) =>
+  Buffer.from(JSON.stringify(value)).toString("base64url")
+const unsigned =
+  encoded({ alg: "RS256", typ: "JWT", kid: "smoke-key" }) +
+  "." +
+  encoded({
+    sub: "user_smoke",
+    sid: "sess_smoke",
+    sts: "active",
+    azp: origin,
+    iss: issuer,
+    iat: now,
+    nbf: now - 1,
+    exp: now + 300,
+  })
+const session =
+  unsigned +
+  "." +
+  sign("RSA-SHA256", Buffer.from(unsigned), signing.privateKey).toString(
+    "base64url"
+  )
 
 const environment = {
   ...process.env,
@@ -21,6 +49,12 @@ const environment = {
   NODE_ENV: "test",
   HOST: "127.0.0.1",
   LOG_LEVEL: "silent",
+  CLERK_JWT_ISSUER_DOMAIN: issuer,
+  CLERK_JWT_KEY: signing.publicKey.export({ type: "spki", format: "pem" }),
+  CLERK_SECRET_KEY: "",
+  CLERK_AUTHORIZED_PARTIES: origin,
+  REALTIME_INTERNAL_SECRET: randomBytes(32).toString("base64url"),
+  REALTIME_REDIS_PREFIX: "smoke_" + randomUUID(),
   DATABASE_URL:
     process.env.DATABASE_URL ??
     "postgresql://conversations:conversations_local@127.0.0.1:55432/conversations",
@@ -104,8 +138,15 @@ const database = await createTestDatabase()
 try {
   await migrateDatabase(database.pool)
   environment.DATABASE_URL = database.connectionString
+  const ports = {
+    api: await availablePort(),
+    worker: await availablePort(),
+    realtime: await availablePort(),
+  }
+  environment.REALTIME_API_URL = `http://127.0.0.1:${ports.api}`
+  environment.REALTIME_PUBLIC_URL = `ws://127.0.0.1:${ports.realtime}/v1/connect`
   for (const service of ["api", "worker", "realtime"]) {
-    const port = await availablePort()
+    const port = ports[service]
     const handle = start(`apps/${service}/dist/index.js`, {
       PORT: String(port),
     })
@@ -131,6 +172,62 @@ try {
   assert.equal(JSON.parse(result.output.trim()).status, "passed")
   console.log(
     "queue: producer → Redis/BullMQ → worker → correlated result passed"
+  )
+
+  const request = async (path, method = "GET", body) => {
+    const response = await fetch(environment.REALTIME_API_URL + path, {
+      method,
+      headers: {
+        authorization: "Bearer " + session,
+        origin,
+        ...(body ? { "content-type": "application/json" } : {}),
+      },
+      ...(body ? { body: JSON.stringify(body) } : {}),
+    })
+    assert.ok(response.ok, "Signed smoke API request failed")
+    return response.status === 204 ? undefined : response.json()
+  }
+  const conversation = await request("/v1/conversations", "POST", {
+    title: "Isolated socket smoke",
+  })
+  const issued = await request("/v1/realtime-tickets", "POST", {
+    conversationId: conversation.id,
+  })
+  const ws = new WebSocket(issued.url, { origin }),
+    frames = []
+  ws.on("error", () => {})
+  ws.on("message", (data) => frames.push(JSON.parse(data.toString())))
+  await within(
+    (async () => {
+      while (!frames.some((frame) => frame.type === "connection.ready"))
+        await delay(20)
+    })(),
+    5000
+  )
+  const snapshot = await request(
+    `/v1/conversations/${conversation.id}/snapshot`
+  )
+  await request(`/v1/conversations/${conversation.id}`, "PATCH", {
+    title: "Durable socket update",
+  })
+  await within(
+    (async () => {
+      while (
+        !frames.some(
+          (frame) =>
+            frame.type === "conversation.updated" &&
+            frame.sequence > snapshot.checkpoint
+        )
+      )
+        await delay(20)
+    })(),
+    5000
+  )
+  const closed = once(ws, "close")
+  ws.close()
+  await within(closed, 3000)
+  console.log(
+    "realtime: signed API ticket → separate socket process → Redis event relay → checkpoint reconciliation passed"
   )
 
   const port = await availablePort()
