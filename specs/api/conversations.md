@@ -46,6 +46,18 @@ Server envelopes use `{ version: 1, eventId, type, conversationId, sequence, occ
 
 Server ping/pong detects stale sockets. Clients reconnect with bounded exponential backoff and jitter, acquire a new ticket, and reconcile persisted history. Connections cannot subscribe to arbitrary conversations after authentication. Revoked/deleted/inaccessible conversations lose their subscription access.
 
+### Connection and reconciliation protocol
+
+`POST /v1/realtime-tickets` accepts exactly `{ conversationId }` and returns201 with opaque ticket, WebSocket URL and expiration. Issuance verifies the Clerk user session and conversation ownership. Ticket lifetime is at most60 seconds and never outlives that JWT. Ticket redemption is atomic and one-use, bound to the exact allowed browser Origin. The socket URL carries only that opaque ticket; Clerk credentials stay in authenticated API requests and bounded server-side TTL state.
+
+Realtime redeems tickets and rechecks access through authenticated internal API endpoints, using a separate high-entropy service secret. These endpoints are not browser capabilities and never bypass Clerk verification. The API re-verifies the original session signature/claims/expiry and current account/conversation access; inaccessible or unavailable checks fail closed. A socket never outlives its JWT or a five-minute connection lease. Stateless Clerk JWT revocation can remain effective until token expiry; immediate upstream session revocation is not claimed without a separate online session-status check. Fresh connections require fresh tickets and current session verification.
+
+One socket has one immutable conversation scope. It initially subscribes, then accepts only strict version1 `subscribe`/`unsubscribe` controls for that same scope; arbitrary account/conversation fields are invalid. Server `connection.ready` acknowledges Redis subscription before client reconciliation; `connection.unsubscribed` acknowledges cleanup. These controls report local connection presence, not collaborative user presence. Heartbeat uses WebSocket ping/pong. Client controls are bounded to1024 bytes, server event frames to512KiB, and unsent/reconciliation buffers are bounded; overflow closes the connection and requires recovery.
+
+`GET /v1/conversations/:id/snapshot` returns the owned conversation, active operation, latest ordered message page and durable `checkpoint` from one consistent transaction. Query `limit` defaults to50, maximum100. Messages/page cursors retain the history contract. The browser establishes subscription before fetching this snapshot, buffers concurrent delivery, applies the snapshot at its checkpoint and then applies contiguous later durable events. Replayed IDs/sequences cannot apply twice; gaps/out-of-order delivery force another authoritative snapshot. Persisted terminal messages dominate late partial snapshots. Older history is loaded using the existing paginated endpoint.
+
+Redis pub/sub interruption, lost subscription, server restart, failed authorization recheck, heartbeat failure or buffer overflow closes affected sockets. No reconnect silently claims continuity: the browser obtains a fresh ticket, waits for subscription acknowledgement and reconciles again. Reconnect delay has bounded exponential backoff and jitter. Shutdown removes subscriptions, grants, timers and sockets before infrastructure closes.
+
 ## Job boundary
 
 The generation command contains version, operation ID, account ID, conversation ID, input message ID, and correlation context. The worker reloads authoritative data and state before execution; queue payloads do not replace authorization or concurrency checks. Completion/failure uses the same domain transitions as the API.

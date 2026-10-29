@@ -17,6 +17,8 @@ The user chose a fresh PostgreSQL workspace on 2026-10-28. Existing Convex data 
 
 Browser-safe contracts live separately from server-only infrastructure. No voice SDK or database client belongs in the browser-safe contract package.
 
+Realtime has no PostgreSQL client or conversation writes. The API owns ticket redemption, periodic signed-session/access checks, consistent history checkpoints and durable-event relay. API/realtime share only a server-side internal service secret; browser transports receive opaque one-use tickets and versioned application data. Redis interruption invalidates socket continuity and forces subscribe-before-snapshot recovery.
+
 ## Response ownership
 
 Text prompts are API-owned commands executed by the worker behind an AI-provider interface. Vapi owns live voice response generation. The API ingests authenticated provider conversation updates and final call reports through a provider adapter; browser transcript events are display previews, not trusted durable writes. A voice turn does not enqueue text generation.
