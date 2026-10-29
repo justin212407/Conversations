@@ -1,11 +1,11 @@
 ---
 status: planned
-depends: [realtime]
+depends: [workspace]
 specs:
   - specs/architecture.md
   - specs/behaviors/conversation-lifecycle.md
   - specs/api/conversations.md
-issues: [22, 23, 24, 25, 26]
+issues: [23, 24, 25, 26]
 ---
 
 # Plan: Durable conversation
@@ -20,7 +20,7 @@ Architecture, lifecycle, REST/event/job contracts, and final deployment behavior
 
 ## Approach
 
-Build on #18's Drizzle migrations, verified Clerk account projection, ownership-scoped persistence, and shared subscription-authorization boundary, delivered by the [persistence/auth plan](persistence-auth.md). The [conversation API plan](conversation-api.md) adds owned CRUD/history, durable text admission/retry, finalization, and validated event/job handoff (#19). The [text-generation plan](text-generation.md) implements fenced BullMQ/Gemini execution, complete bounded context, durable failures/retry, lease recovery and the provisional snapshot contract (#20). The [realtime plan](realtime.md) adds API-owned one-use tickets/access checks/event relay, database-free WebSocket delivery, atomic checkpoints and the browser recovery interface (#21). Implement workspace (#22) and voice (#23) in dependency order after realtime actually merges. Add observability (#24) and CI/regression coverage (#25) alongside those features. Complete cutover/deployment evidence (#26). Maintain the private change journal after each small change.
+Build on #18's Drizzle migrations, verified Clerk account projection, ownership-scoped persistence, and shared subscription-authorization boundary, delivered by the [persistence/auth plan](persistence-auth.md). The [conversation API plan](conversation-api.md) adds owned CRUD/history, durable text admission/retry, finalization, and validated event/job handoff (#19). The [text-generation plan](text-generation.md) implements fenced BullMQ/Gemini execution, complete bounded context, durable failures/retry, lease recovery and the provisional snapshot contract (#20). The [realtime plan](realtime.md) adds API-owned one-use tickets/access checks/event relay, database-free WebSocket delivery, atomic checkpoints and the browser recovery interface (#21). The [workspace plan](workspace.md) implements the personal Clerk/REST/realtime UI, bounded unresolved delivery identity, paginated history and keyboard/mobile recovery flows (#22). Implement voice (#23) only after that workspace actually merges. Add observability (#24) and CI/regression coverage (#25) alongside those features. Complete cutover/deployment evidence (#26). Maintain the private change journal after each small change. Absorb the workspace follow-ups: integrate voice with the established personal shell and stored history; evaluate patched optional telemetry dependencies and safe diagnostics in #24; retain controller/browser/real-service regressions in #25; complete actual frontend/service deployment and cutover proof in #26.
 
 ## Validation
 
@@ -38,7 +38,7 @@ Real authentication/provider credentials and cloud provisioning must be availabl
 
 ## Notes
 
-The account/storage boundary merged in PR #28, conversation API/transactional commands in PR #29 and text generation in PR #30. Realtime is implemented in PR #31 with 61 local tests, separate-process smoke and an isolated actual-container Gemini/completion/restart proof. Independent reviews verified the corrections; actual merge remains the next gate before workspace #22 consumes its browser connection/reducer interface. All workspace/voice/diagnostic/regression/deployment criteria stay open. Railway remains deferred to #26, Vapi stays free, and the user's temporary hosted-CI exception preserves reviewed local gates.
+The account/storage boundary merged in PR #28, conversation API/transactional commands in PR #29 and text generation in PR #30. Realtime is implemented in PR #31 with 61 local tests, separate-process smoke and an isolated actual-container Gemini/completion/restart proof. PR #31 merged before workspace work began. The workspace is implemented in PR #32 with 72 local automated tests, a clean production build and isolated Brave fixture evidence; its actual Clerk walkthrough and independent review remain pre-merge gates at the time of its closeout. The workspace acceptance checkbox remains open until that gate/merge is recorded. Voice/diagnostic/regression/deployment criteria stay open. Railway remains deferred to #26, Vapi stays free, and the user's temporary hosted-CI exception preserves reviewed local gates.
 
 ## Follow-ups
 
