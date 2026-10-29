@@ -214,6 +214,94 @@ test("terminal stream before delayed POST acknowledgement unlocks the next turn"
   f.store.stop()
 })
 
+test("delivery recovery preserves its UUID across authentication failure and reload", async () => {
+  const bodies: Array<{ clientRequestId: string; content: string }> = []
+  const f = setup({
+    submit: async (id, body) => {
+      bodies.push(body)
+      if (bodies.length === 1) throw new WorkspaceError(503)
+      if (bodies.length === 2) throw new WorkspaceError(401)
+      return admission(id)
+    },
+  })
+  f.store.select(f.first.id)
+  await f.store.start()
+  f.store.setDraft("Keep the original delivery identity")
+  f.store.send()
+  await flush()
+  const original = f.store.snapshot().intent!
+  f.store.stop()
+  const next = setup(
+    { account: f.api.account, submit: f.api.submit },
+    f.storage
+  )
+  next.store.select(f.first.id)
+  await next.store.start()
+  next.store.checkDelivery()
+  await flush()
+  assert.equal(
+    next.store.snapshot().intent?.clientRequestId,
+    original.clientRequestId
+  )
+  assert.equal(
+    pendingRequests(() => f.storage).get(f.accountId, f.first.id)
+      ?.clientRequestId,
+    original.clientRequestId
+  )
+  next.store.stop()
+  const repaired = setup(
+    { account: f.api.account, submit: f.api.submit },
+    f.storage
+  )
+  repaired.store.select(f.first.id)
+  await repaired.store.start()
+  repaired.store.checkDelivery()
+  await flush()
+  assert.deepEqual(bodies, [bodies[0], bodies[0], bodies[0]])
+  assert.equal(repaired.store.snapshot().intent, null)
+  assert.equal(
+    pendingRequests(() => f.storage).get(f.accountId, f.first.id),
+    null
+  )
+  repaired.store.stop()
+})
+
+test("unavailable access clears older history and fences a pending older page", async () => {
+  const f = setup()
+  f.store.select(f.first.id)
+  await f.store.start()
+  const message: MessageData = {
+    id: randomUUID(),
+    conversationId: f.first.id,
+    sequence: 1,
+    role: "user",
+    modality: "text",
+    content: "Previously loaded",
+    state: "completed",
+    createdAt: now,
+    updatedAt: now,
+  }
+  f.connections.at(-1)!.publish({ nextCursor: "older" })
+  f.api.older = async () => ({ items: [message], nextCursor: "oldest" })
+  await f.store.older()
+  const page = deferred<{ items: MessageData[]; nextCursor: string | null }>()
+  f.api.older = () => page.promise
+  const loading = f.store.older()
+  f.connections
+    .at(-1)!
+    .options.onChange({
+      phase: "unavailable",
+      state: initialConversationState(f.first.id),
+    })
+  assert.deepEqual(displayedMessages(f.store.snapshot()), [])
+  assert.equal(f.store.snapshot().olderLoading, false)
+  page.resolve({ items: [message], nextCursor: null })
+  await loading
+  assert.deepEqual(displayedMessages(f.store.snapshot()), [])
+  assert.equal(f.store.snapshot().olderCursor, null)
+  f.store.stop()
+})
+
 test("A→B→A fences stale delivery and clears only its matching saved request", async () => {
   const old = deferred<OperationAdmission>(),
     newer = deferred<OperationAdmission>(),
@@ -348,12 +436,10 @@ test("list pagination deduplicates IDs, filter races do not overwrite current re
     displayedMessages(f.store.snapshot()).map((message) => message.sequence),
     [1, 3]
   )
-  f.connections
-    .at(-1)!
-    .options.onChange({
-      phase: "unavailable",
-      state: initialConversationState(f.second.id),
-    })
+  f.connections.at(-1)!.options.onChange({
+    phase: "unavailable",
+    state: initialConversationState(f.second.id),
+  })
   assert.ok(
     f.store.snapshot().conversations.every((item) => item.id !== f.second.id)
   )

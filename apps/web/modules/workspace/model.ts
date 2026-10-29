@@ -160,7 +160,8 @@ export function createWorkspaceStore(options: {
       onChange: (value) => {
         if (!current(session, id) || selection !== selected) return
         const reset =
-          value.phase === "reconciling" && state.phase !== "reconciling"
+          value.phase === "unavailable" ||
+          (value.phase === "reconciling" && state.phase !== "reconciling")
         if (reset) olderRequest++
         const admitted = state.admission,
           message = value.state.messages.find(
@@ -185,6 +186,7 @@ export function createWorkspaceStore(options: {
                 olderCursor: null,
                 olderLoaded: false,
                 olderLoading: false,
+                olderError: null,
               }
             : {}),
           ...(message &&
@@ -283,14 +285,22 @@ export function createWorkspaceStore(options: {
         state.intent?.clientRequestId !== intent.clientRequestId
       )
         return
-      const uncertain = !(error instanceof WorkspaceError) || error.uncertain
+      // Authentication/access failures do not establish whether an earlier
+      // delivery committed. Retain its identity through session repair.
+      const uncertain =
+        !(error instanceof WorkspaceError) ||
+        error.uncertain ||
+        [401, 403, 404].includes(error.status)
       if (!uncertain) clearIntent(account, id, intent.clientRequestId)
       emit({
         sending: false,
         intent: uncertain ? intent : null,
-        commandError: uncertain
-          ? "Delivery is not confirmed. Check delivery to safely resend this same request."
-          : userError(error),
+        commandError:
+          error instanceof WorkspaceError && error.status === 401
+            ? userError(error)
+            : uncertain
+              ? "Delivery is not confirmed. Check delivery to safely resend this same request."
+              : userError(error),
       })
       if (error instanceof WorkspaceError && error.status === 409) {
         connection?.stop()
