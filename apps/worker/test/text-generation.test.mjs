@@ -640,6 +640,23 @@ test("actual Gemini SDK streams behind adapter, disables retries, maps safe fail
       ),
       "output_limit",
     ],
+    [
+      new Response(
+        "data: " +
+          JSON.stringify({
+            candidates: [
+              {
+                content: { role: "model", parts: [{ text: "Incomplete" }] },
+                finishReason: "CONTINUATION",
+                continuationToken: "synthetic-continuation-token",
+              },
+            ],
+          }) +
+          "\n\n",
+        { headers: { "content-type": "text/event-stream" } }
+      ),
+      "provider_error",
+    ],
   ]) {
     let count = 0
     const failed = geminiProvider({

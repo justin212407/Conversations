@@ -1,10 +1,19 @@
 import assert from "node:assert/strict"
 import { spawn } from "node:child_process"
 import { once } from "node:events"
+import { randomUUID } from "node:crypto"
+import { createRequire } from "node:module"
 import { createServer } from "node:net"
 import { setTimeout as delay } from "node:timers/promises"
 import { migrateDatabase } from "../packages/database/dist/index.js"
 import { createTestDatabase } from "../packages/database/test/database-fixture.mjs"
+import { redisConnectionOptions } from "../packages/service-runtime/dist/index.js"
+import { TEXT_GENERATION_QUEUE } from "../packages/shared/dist/index.js"
+
+const { Queue } = createRequire(
+  new URL("../apps/worker/package.json", import.meta.url)
+)("bullmq")
+const textQueuePrefixes = []
 
 const environment = {
   ...process.env,
@@ -32,8 +41,15 @@ async function availablePort() {
 }
 
 function start(file, overrides = {}) {
+  // Every worker owns a different temporary database, so it must also own a
+  // different queue even when the caller supplies a live TEXT_QUEUE_PREFIX.
+  const workerEnvironment = {}
+  if (file === "apps/worker/dist/index.js") {
+    workerEnvironment.TEXT_QUEUE_PREFIX = "smoke_" + randomUUID()
+    textQueuePrefixes.push(workerEnvironment.TEXT_QUEUE_PREFIX)
+  }
   const child = spawn(process.execPath, [file], {
-    env: { ...environment, ...overrides },
+    env: { ...environment, ...overrides, ...workerEnvironment },
     stdio: ["ignore", "pipe", "pipe"],
   })
   let output = ""
@@ -208,5 +224,26 @@ try {
       }
     }
   }
-  await database.close()
+  try {
+    for (const prefix of textQueuePrefixes) {
+      const queue = new Queue(TEXT_GENERATION_QUEUE, {
+        prefix,
+        connection: {
+          ...redisConnectionOptions(environment.REDIS_URL),
+          maxRetriesPerRequest: 1,
+          enableOfflineQueue: false,
+          connectTimeout: 1500,
+          commandTimeout: 1500,
+        },
+      })
+      queue.on("error", () => {})
+      try {
+        await within(queue.obliterate({ force: true }), 3000)
+      } finally {
+        await queue.close()
+      }
+    }
+  } finally {
+    await database.close()
+  }
 }

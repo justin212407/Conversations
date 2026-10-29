@@ -58,6 +58,7 @@ export function geminiProvider(options: {
           contents,
           config: {
             abortSignal: signal,
+            automaticContinuation: false,
             maxOutputTokens: 16384,
             candidateCount: 1,
           },
