@@ -6,6 +6,7 @@ import {
   domainEventSchema,
   type DomainEvent,
   type MessageData,
+  type RequestCorrelation,
 } from "@conversations/shared"
 import type { Message } from "./store.js"
 
@@ -28,7 +29,8 @@ export async function appendEvent<Type extends DomainEvent["type"]>(
   tx: Transaction,
   conversationId: string,
   type: Type,
-  payload: Extract<DomainEvent, { type: Type }>["payload"]
+  payload: Extract<DomainEvent, { type: Type }>["payload"],
+  correlation?: RequestCorrelation
 ) {
   const [counter] = await tx
     .update(conversations)
@@ -46,15 +48,14 @@ export async function appendEvent<Type extends DomainEvent["type"]>(
     sequence: counter.sequence,
     occurredAt,
     payload,
+    ...(correlation ? { correlation } : {}),
   })
-  await tx
-    .insert(handoffs)
-    .values({
-      id,
-      conversationId,
-      kind: "event",
-      sequence: counter.sequence,
-      type,
-      payload: event,
-    })
+  await tx.insert(handoffs).values({
+    id,
+    conversationId,
+    kind: "event",
+    sequence: counter.sequence,
+    type,
+    payload: event,
+  })
 }

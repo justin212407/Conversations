@@ -1,4 +1,7 @@
 import { Worker } from "bullmq"
+import { ConversationStore, checkDatabaseSchema } from "@conversations/database"
+import { loadTextConfig, createTextProvider } from "./text-config.js"
+import { createTextRuntime } from "./text-runtime.js"
 import {
   FOUNDATION_QUEUE,
   probeJobSchema,
@@ -16,7 +19,18 @@ import {
 
 async function main() {
   const config = loadConfig("worker")
+  const textConfig = loadTextConfig()
+  const provider = createTextProvider(textConfig)
   const resources = createResources(config)
+  if (!resources.postgres) throw new Error("Worker persistence unavailable")
+  const text = createTextRuntime({
+    store: new ConversationStore(resources.postgres),
+    redisUrl: config.REDIS_URL,
+    prefix: textConfig.TEXT_QUEUE_PREFIX,
+    provider,
+    timeoutMs: textConfig.TEXT_GENERATION_TIMEOUT_MS,
+    schemaReady: () => checkDatabaseSchema(resources.postgres!),
+  })
   const worker = new Worker<ProbeJob, ProbeResult>(
     FOUNDATION_QUEUE,
     async (job) => {
@@ -34,9 +48,14 @@ async function main() {
   )
   worker.on("error", () => {}) // Report availability through readiness; never expose Redis credentials.
   const app = createHealthServer(config, {
-    stopIntake: () => worker.pause(true),
+    stopIntake: async () => {
+      await Promise.all([worker.pause(true), text.worker.pause(true)])
+      await text.stopIntake()
+    },
     dependencies: [
       ...resources.dependencies,
+      { name: "schema", check: () => checkDatabaseSchema(resources.postgres!) },
+      { name: "generation", check: () => text.check() },
       {
         name: "queue",
         check: async () => {
@@ -49,7 +68,7 @@ async function main() {
     ],
     async close() {
       try {
-        await worker.close()
+        await Promise.all([worker.close(true), text.close()])
       } finally {
         await resources.close()
       }
@@ -61,6 +80,7 @@ async function main() {
   worker.on("completed", (job) =>
     app.log.info({ jobId: job.id }, "Foundation probe completed")
   )
+  text.start()
   await startService(app, config)
 }
 main().catch(reportStartupFailure)

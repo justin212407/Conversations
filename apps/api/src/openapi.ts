@@ -1,5 +1,18 @@
 const ref = (name: string) => ({ $ref: `#/components/schemas/${name}` })
 const uuid = { type: "string", format: "uuid" }
+const failureCode = {
+  type: ["string", "null"],
+  enum: [
+    null,
+    "provider_unavailable",
+    "provider_error",
+    "timeout",
+    "context_limit",
+    "output_limit",
+    "interrupted",
+    "expired",
+  ],
+}
 const timestamp = { type: "string", format: "date-time" }
 const exampleId = "a0000000-0000-4000-8000-000000000001"
 const exampleConversation = {
@@ -29,6 +42,8 @@ const schemaExamples: Record<string, unknown> = {
         state: "completed",
         createdAt: exampleConversation.createdAt,
         updatedAt: exampleConversation.updatedAt,
+        operationId: null,
+        failureCode: null,
       },
     ],
     nextCursor: null,
@@ -40,6 +55,7 @@ const schemaExamples: Record<string, unknown> = {
     assistantMessageId: "a0000000-0000-4000-8000-000000000004",
     status: "pending",
     expiresAt: "2026-10-29T00:05:00.000Z",
+    failureCode: null,
   },
   Health: {
     service: "api",
@@ -146,7 +162,7 @@ export const openapi = {
     title: "Conversations API",
     version: "1.0.0",
     description:
-      "Durable personal conversations and accepted text commands. Pending operations require the later worker feature; generation, sockets, and voice orchestration are not implemented by these routes.",
+      "Durable personal conversations and asynchronous text generation. Accepted operations execute through the separate worker; sockets and voice orchestration remain planned.",
   },
   paths: {
     "/openapi.json": {
@@ -297,6 +313,8 @@ export const openapi = {
       post: {
         ...secure,
         operationId: "submitText",
+        description:
+          "Context includes all completed history through this input, including voice. More than100 messages or64000 Unicode code points returns413 before admission; history is never silently truncated.",
         requestBody: request(
           closed(
             {
@@ -328,6 +346,7 @@ export const openapi = {
               assistantMessageId: "a0000000-0000-4000-8000-000000000002",
               status: "pending",
               expiresAt: "2026-10-29T00:05:00.000Z",
+              failureCode: null,
             }
           ),
         },
@@ -407,6 +426,8 @@ export const openapi = {
           role: { type: "string", enum: ["user", "assistant"] },
           modality: { type: "string", enum: ["text", "voice"] },
           content: { type: "string" },
+          operationId: { anyOf: [uuid, { type: "null" }] },
+          failureCode,
           state: {
             type: "string",
             enum: [
@@ -430,6 +451,8 @@ export const openapi = {
           "state",
           "createdAt",
           "updatedAt",
+          "operationId",
+          "failureCode",
         ]
       ),
       Admission: closed(
@@ -443,6 +466,7 @@ export const openapi = {
             enum: ["pending", "running", "completed", "failed", "interrupted"],
           },
           expiresAt: timestamp,
+          failureCode,
         },
         [
           "operationId",
@@ -451,6 +475,7 @@ export const openapi = {
           "assistantMessageId",
           "status",
           "expiresAt",
+          "failureCode",
         ]
       ),
       ConversationPage: closed(

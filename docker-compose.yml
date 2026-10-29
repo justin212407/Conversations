@@ -108,6 +108,18 @@ services:
     environment:
       <<: *environment
       PORT: 4302
+      TEXT_PROVIDER: ${TEXT_PROVIDER:-gemini}
+      GOOGLE_GENERATIVE_AI_API_KEY: ${GOOGLE_GENERATIVE_AI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.5-flash-lite}
+      TEXT_GENERATION_TIMEOUT_MS: ${TEXT_GENERATION_TIMEOUT_MS:-60000}
+      TEXT_QUEUE_PREFIX: ${TEXT_QUEUE_PREFIX:-conversations}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     healthcheck:
       test:
         [

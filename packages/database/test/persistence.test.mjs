@@ -21,6 +21,89 @@ import {
 } from "../dist/index.js"
 import { createTestDatabase } from "./database-fixture.mjs"
 
+test("text-worker migration upgrades durable command history and enforces unique assistant linkage", async () => {
+  const database = await createTestDatabase(),
+    folder = await mkdtemp(join(tmpdir(), "conversations-text-upgrade-"))
+  try {
+    const journal = JSON.parse(
+      await readFile(join(migrationsFolder, "meta/_journal.json"), "utf8")
+    )
+    await mkdir(join(folder, "meta"))
+    const prior = journal.entries.slice(0, 3)
+    await writeFile(
+      join(folder, "meta/_journal.json"),
+      JSON.stringify({ ...journal, entries: prior })
+    )
+    for (const entry of prior)
+      await copyFile(
+        join(migrationsFolder, entry.tag + ".sql"),
+        join(folder, entry.tag + ".sql")
+      )
+    await migrateDatabase(database.pool, folder)
+    const store = new ConversationStore(database.pool),
+      owner = await store.provisionAccount("user_text_upgrade"),
+      conversation = await store.createConversation(owner.id)
+    const [input, assistant] = await store.appendMessages(
+      owner.id,
+      conversation.id,
+      [
+        {
+          role: "user",
+          modality: "text",
+          content: "Original input",
+          state: "completed",
+        },
+        {
+          role: "assistant",
+          modality: "text",
+          content: "Prior partial",
+          state: "failed",
+        },
+      ]
+    )
+    const operationId = randomUUID()
+    await database.pool.query(
+      "INSERT INTO operations(id,account_id,conversation_id,client_request_id,request_hash,kind,status,input_message_id,assistant_message_id,expires_at) VALUES($1,$2,$3,$4,'prior','text','failed',$5,$6,clock_timestamp())",
+      [
+        operationId,
+        owner.id,
+        conversation.id,
+        randomUUID(),
+        input.id,
+        assistant.id,
+      ]
+    )
+    await assert.rejects(checkDatabaseSchema(database.pool))
+    await Promise.all([
+      migrateDatabase(database.pool),
+      migrateDatabase(database.pool),
+    ])
+    await checkDatabaseSchema(database.pool)
+    const history = await store.history.messages(owner.id, conversation.id)
+    assert.equal(history.items.at(-1).operationId, operationId)
+    assert.equal(history.items.at(-1).failureCode, null)
+    assert.equal(history.items.at(-1).content, "Prior partial")
+    await assert.rejects(
+      database.pool.query(
+        "INSERT INTO operations(account_id,conversation_id,client_request_id,request_hash,kind,status,input_message_id,assistant_message_id,expires_at) VALUES($1,$2,$3,'duplicate','text','failed',$4,$5,clock_timestamp())",
+        [owner.id, conversation.id, randomUUID(), input.id, assistant.id]
+      ),
+      (error) =>
+        error.code === "23505" &&
+        error.constraint === "operations_assistant_message_idx"
+    )
+    await migrateDatabase(database.pool)
+    assert.equal(
+      (await database.pool.query("SELECT count(*)::int count FROM operations"))
+        .rows[0].count,
+      1
+    )
+  } finally {
+    await rm(folder, { recursive: true, force: true })
+    await database.close()
+  }
+})
+
 test("migrations install, upgrade, serialize and preserve the existing account", async () => {
   const database = await createTestDatabase()
   const folder = await mkdtemp(join(tmpdir(), "conversations-migrations-"))

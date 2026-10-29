@@ -35,3 +35,11 @@ History is paginated by a stable sequence cursor, with a default limit of 50 and
 Realtime events have an event UUID, version, conversation ID, sequence, timestamp, and typed payload. Durable events are ordered per conversation and delivered at least once. Provisional text deltas are best effort and keyed by message ID. Clients deduplicate events, detect gaps, and reconcile with REST history after every reconnect. Subscription must be established before the reconciliation snapshot is applied so concurrent updates can be merged.
 
 No later-slice queue feature is required to guarantee these baseline durability and ownership rules.
+
+## Typed generation bounds and recovery
+
+Text context includes every completed message (including voice) in sequence through the operation's original user input, exactly once. Admission and execution both enforce 100 completed messages and 64000 Unicode code points; admission returns 413 before accepting an oversized context. Retries retain that original cutoff. Output is bounded to 64000 code points. History exposes nullable operation identity and a safe failure code on assistant messages so reload can discover a retry without local browser memory.
+
+One leased execution may call the provider for an operation. Duplicate queue deliveries cannot start another call or overwrite a terminal result. Provider calls time out before the five-minute operation lease. Bounded background recovery marks expired text operations interrupted, including after restart. Shutdown stops intake, cancels model work and persists interruption where dependencies remain available. Safe failure codes distinguish provider unavailability/error, timeout, context/output limits, interruption and expiry; raw provider errors remain private.
+
+Provisional snapshots use a public stream UUID and increasing message revision. Their envelope sequence is the observed durable checkpoint, not a newly allocated durable event sequence. Consumers order snapshots by stream/revision and always give persisted terminal message state precedence over late snapshots. Snapshots are best effort and never constitute completion.

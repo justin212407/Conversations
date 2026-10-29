@@ -14,7 +14,15 @@ import {
   isUuid,
 } from "./errors.js"
 import { appendEvent, messageData } from "./events.js"
-import { textGenerationJobSchema } from "@conversations/shared"
+import {
+  textGenerationJobSchema,
+  generationFailureSchema,
+  requestCorrelationSchema,
+  type GenerationFailure,
+  type RequestCorrelation,
+  type TextGenerationJob,
+} from "@conversations/shared"
+import { completedContext } from "./context.js"
 import {
   conversations,
   finalizedDeliveries,
@@ -72,6 +80,7 @@ export function admission(operation: Operation) {
     assistantMessageId: operation.assistantMessageId,
     status: operation.status,
     expiresAt: operation.expiresAt.toISOString(),
+    failureCode: operation.failureCode,
   }
 }
 
@@ -169,7 +178,7 @@ export class ConversationCommands {
     inputMessageId: string,
     assistantMessageId: string,
     retryOf: string | undefined,
-    correlation: string
+    correlation: RequestCorrelation | string
   ) {
     const [operation] = await tx
       .insert(operations)
@@ -192,7 +201,11 @@ export class ConversationCommands {
       accountId: conversation.accountId,
       conversationId: conversation.id,
       inputMessageId,
-      correlation: { requestId: correlation },
+      correlation: requestCorrelationSchema.parse(
+        typeof correlation === "string"
+          ? { requestId: correlation }
+          : correlation
+      ),
     })
     await tx.insert(handoffs).values({
       kind: "job",
@@ -201,9 +214,15 @@ export class ConversationCommands {
       type: "text.generate",
       payload: job,
     })
-    await appendEvent(tx, conversation.id, "operation.accepted", {
-      operation: admission(operation),
-    })
+    await appendEvent(
+      tx,
+      conversation.id,
+      "operation.accepted",
+      {
+        operation: admission(operation),
+      },
+      job.correlation
+    )
     return operation
   }
 
@@ -212,7 +231,7 @@ export class ConversationCommands {
     conversationId: string,
     clientRequestId: string,
     content: string,
-    correlation: string = randomUUID()
+    correlation: RequestCorrelation | string = randomUUID()
   ) {
     validateContent(content)
     const id = requestId(clientRequestId)
@@ -232,6 +251,7 @@ export class ConversationCommands {
           )
           if (previous) return admission(previous)
           await this.ensureAvailable(tx, conversation)
+          await completedContext(tx, conversation.id, undefined, content)
           const inputMessageId = randomUUID(),
             assistantMessageId = randomUUID()
           await appendMessages(tx, conversationId, [
@@ -368,16 +388,26 @@ export class ConversationCommands {
     tx: Transaction,
     operation: Operation,
     state: TerminalState,
-    content: string
+    content: string,
+    failureCode?: GenerationFailure
   ) {
-    const resultHash = hash({ state, content })
+    const resultHash = hash({
+      state,
+      content,
+      ...(failureCode ? { failureCode } : {}),
+    })
     if (!active(operation.status)) {
       if (operation.resultHash !== resultHash) throw new ConversationConflict()
       return operation
     }
     const [updated] = await tx
       .update(operations)
-      .set({ status: state, resultHash, completedAt: sql`clock_timestamp()` })
+      .set({
+        status: state,
+        resultHash,
+        failureCode: failureCode ?? null,
+        completedAt: sql`clock_timestamp()`,
+      })
       .where(eq(operations.id, operation.id))
       .returning()
     if (!updated || !operation.assistantMessageId)
@@ -403,12 +433,37 @@ export class ConversationCommands {
       .where(
         and(eq(handoffs.operationId, operation.id), eq(handoffs.kind, "job"))
       )
-    await appendEvent(tx, operation.conversationId, `message.${state}`, {
-      message: messageData(message),
-    })
-    await appendEvent(tx, operation.conversationId, `operation.${state}`, {
-      operation: admission(updated),
-    })
+    const [jobHandoff] = await tx
+      .select({ payload: handoffs.payload })
+      .from(handoffs)
+      .where(
+        and(eq(handoffs.operationId, operation.id), eq(handoffs.kind, "job"))
+      )
+      .limit(1)
+    const command = textGenerationJobSchema.safeParse(jobHandoff?.payload)
+    const correlation = command.success ? command.data.correlation : undefined
+    await appendEvent(
+      tx,
+      operation.conversationId,
+      `message.${state}`,
+      {
+        message: {
+          ...messageData(message),
+          operationId: operation.id,
+          failureCode: failureCode ?? null,
+        },
+      },
+      correlation
+    )
+    await appendEvent(
+      tx,
+      operation.conversationId,
+      `operation.${state}`,
+      {
+        operation: admission(updated),
+      },
+      correlation
+    )
     return updated
   }
 
@@ -416,7 +471,12 @@ export class ConversationCommands {
     accountId: string,
     conversationId: string,
     operationId: string,
-    result: { state: TerminalState; content: string; executionToken?: string }
+    result: {
+      state: TerminalState
+      content: string
+      executionToken?: string
+      failureCode?: GenerationFailure
+    }
   ) {
     if (
       !isUuid(operationId) ||
@@ -427,6 +487,12 @@ export class ConversationCommands {
       throw new InvalidInput()
     if (result.state === "completed") validateContent(result.content, 64000)
     else if ([...result.content].length > 64000) throw new InputLimitExceeded()
+    if (
+      result.failureCode !== undefined &&
+      (!generationFailureSchema.safeParse(result.failureCode).success ||
+        result.state === "completed")
+    )
+      throw new InvalidInput()
     const executionToken =
       result.executionToken === undefined
         ? undefined
@@ -462,7 +528,8 @@ export class ConversationCommands {
           tx,
           operation.operation,
           result.state,
-          result.content
+          result.content,
+          result.failureCode
         )
       }
     )
@@ -473,7 +540,7 @@ export class ConversationCommands {
     conversationId: string,
     operationId: string,
     clientRequestId: string,
-    correlation: string = randomUUID()
+    correlation: RequestCorrelation | string = randomUUID()
   ) {
     if (!isUuid(operationId)) throw new ResourceNotFound()
     const id = requestId(clientRequestId)
@@ -510,8 +577,33 @@ export class ConversationCommands {
             )
           if (!original) throw new ResourceNotFound()
           let failed = original.operation
+          if (failed.kind !== "text" || !failed.inputMessageId)
+            throw new ConversationConflict()
+          const [input] = await tx
+            .select()
+            .from(messages)
+            .where(
+              and(
+                eq(messages.id, failed.inputMessageId),
+                eq(messages.conversationId, conversation.id)
+              )
+            )
+          if (
+            !input ||
+            input.role !== "user" ||
+            input.state !== "completed" ||
+            input.modality !== "text"
+          )
+            throw new ConversationConflict()
+          await completedContext(tx, conversation.id, input.sequence)
           if (active(failed.status) && original.expired)
-            failed = await this.terminal(tx, failed, "interrupted", "")
+            failed = await this.terminal(
+              tx,
+              failed,
+              "interrupted",
+              "",
+              "expired"
+            )
           if (
             !["failed", "interrupted"].includes(failed.status) ||
             failed.kind !== "text" ||
@@ -547,6 +639,142 @@ export class ConversationCommands {
       if (uniqueRequestConflict(error)) throw new ConversationConflict()
       throw error
     }
+  }
+
+  /** Short authoritative transaction; no pool connection escapes to provider I/O. */
+  async prepareTextExecution(command: TextGenerationJob) {
+    const job = textGenerationJobSchema.parse(command)
+    return withOwnedConversation(
+      this.db,
+      job.accountId,
+      job.conversationId,
+      async (tx, conversation) => {
+        const [row] = await tx
+          .select({
+            operation: operations,
+            expired: sql<boolean>`${operations.expiresAt} <= clock_timestamp()`,
+          })
+          .from(operations)
+          .where(
+            and(
+              eq(operations.id, job.operationId),
+              eq(operations.conversationId, conversation.id),
+              eq(operations.accountId, conversation.accountId)
+            )
+          )
+        if (
+          !row ||
+          row.operation.kind !== "text" ||
+          row.operation.inputMessageId !== job.inputMessageId.toLowerCase() ||
+          !row.operation.assistantMessageId
+        )
+          throw new ResourceNotFound()
+        let operation = row.operation
+        if (active(operation.status) && row.expired)
+          operation = await this.terminal(
+            tx,
+            operation,
+            "interrupted",
+            "",
+            "expired"
+          )
+        if (operation.status !== "pending")
+          return {
+            operation,
+            context: [],
+            checkpoint: conversation.nextEventSequence,
+            contextExceeded: false,
+          }
+        const [input] = await tx
+          .select()
+          .from(messages)
+          .where(
+            and(
+              eq(messages.id, job.inputMessageId),
+              eq(messages.conversationId, conversation.id)
+            )
+          )
+        if (
+          !input ||
+          input.role !== "user" ||
+          input.modality !== "text" ||
+          input.state !== "completed"
+        )
+          throw new ResourceNotFound()
+        try {
+          validateContent(input.content)
+          const context = await completedContext(
+            tx,
+            conversation.id,
+            input.sequence
+          )
+          return {
+            operation,
+            context,
+            checkpoint: conversation.nextEventSequence,
+            contextExceeded: false,
+          }
+        } catch (error) {
+          if (!(error instanceof InputLimitExceeded)) throw error
+          return {
+            operation,
+            context: [],
+            checkpoint: conversation.nextEventSequence,
+            contextExceeded: true,
+          }
+        }
+      }
+    )
+  }
+
+  /** Trusted bounded maintenance: expires leases without executing a new model call. */
+  async interruptExpiredTextOperations(
+    limit = 25,
+    shouldStop: () => boolean = () => false
+  ) {
+    if (!Number.isInteger(limit) || limit < 1 || limit > 100)
+      throw new InvalidInput()
+    const expired = await this.db
+      .select({
+        id: operations.id,
+        accountId: operations.accountId,
+        conversationId: operations.conversationId,
+      })
+      .from(operations)
+      .where(
+        and(
+          eq(operations.kind, "text"),
+          inArray(operations.status, ["pending", "running"]),
+          sql`${operations.expiresAt} <= clock_timestamp()`
+        )
+      )
+      .limit(limit)
+    let interrupted = 0
+    for (const candidate of expired) {
+      if (shouldStop()) break
+      await withOwnedConversation(
+        this.db,
+        candidate.accountId,
+        candidate.conversationId,
+        async (tx) => {
+          const [current] = await tx
+            .select()
+            .from(operations)
+            .where(
+              and(
+                eq(operations.id, candidate.id),
+                inArray(operations.status, ["pending", "running"]),
+                sql`${operations.expiresAt} <= clock_timestamp()`
+              )
+            )
+          if (current) {
+            await this.terminal(tx, current, "interrupted", "", "expired")
+            interrupted++
+          }
+        }
+      )
+    }
+    return interrupted
   }
 
   /** Trusted adapter seam: stable delivery identity, never browser transcript authority. */
