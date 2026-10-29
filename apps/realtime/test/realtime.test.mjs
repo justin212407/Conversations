@@ -35,6 +35,40 @@ async function rejected(url, headers = { origin }) {
 const key = (f, kind, id) =>
   `${f.config.REALTIME_REDIS_PREFIX}:${kind}:${createHash("sha256").update(id).digest("hex")}`
 
+test("healthy sockets above the access-check concurrency limit remain connected and all get revalidated", async (t) => {
+  const counts = new Map()
+  let delayed = false,
+    active = 0,
+    maximum = 0
+  const f = await fixture(t, {
+    onCheck: async (id) => {
+      counts.set(id, (counts.get(id) ?? 0) + 1)
+      if (!delayed) return
+      active++
+      maximum = Math.max(maximum, active)
+      try {
+        await delay(75)
+      } finally {
+        active--
+      }
+    },
+  })
+  const conversation = await f.create(),
+    clients = []
+  for (let index = 0; index < 12; index++)
+    clients.push(await f.open(conversation.id))
+  const baseline = new Map(counts)
+  delayed = true
+  await until(() =>
+    clients.every((client) => {
+      const id = client.frames[0].connectionId
+      return (counts.get(id) ?? 0) > (baseline.get(id) ?? 0)
+    })
+  )
+  assert.ok(maximum <= 8)
+  assert.ok(clients.every((client) => client.ws.readyState === WebSocket.OPEN))
+})
+
 test("tickets use actual Clerk verification, ownership/exact Origin, sixty-second TTL and atomic one-use redemption", async (t) => {
   const f = await fixture(t),
     mine = await f.create(),

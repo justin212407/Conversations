@@ -145,6 +145,7 @@ export function createGateway(options: {
   function cleanup(connection: Connection) {
     if (connection.closed) return
     connection.closed = true
+    cancelQueuedCheck(connection)
     clearTimeout(connection.expiry)
     detach(connection)
     connections.delete(connection)
@@ -161,43 +162,73 @@ export function createGateway(options: {
     connection.ws.once("close", () => clearTimeout(timeout))
   }
   const checkTasks = new Map<Connection, Promise<boolean>>()
+  const waitingChecks: {
+    connection: Connection
+    resolve: (allowed: boolean) => void
+  }[] = []
+  function cancelQueuedCheck(connection: Connection) {
+    const index = waitingChecks.findIndex(
+      (item) => item.connection === connection
+    )
+    if (index < 0) return
+    const [waiting] = waitingChecks.splice(index, 1)
+    checkTasks.delete(connection)
+    waiting?.resolve(false)
+  }
+  function drainChecks() {
+    while (checks < 8 && waitingChecks.length) {
+      const next = waitingChecks.shift()!
+      const { connection, resolve } = next
+      if (connection.closed) {
+        checkTasks.delete(connection)
+        resolve(false)
+        continue
+      }
+      checks++
+      void performCheck(connection)
+        .then(resolve)
+        .finally(() => {
+          checks--
+          checkTasks.delete(connection)
+          drainChecks()
+        })
+    }
+  }
+  async function performCheck(connection: Connection) {
+    try {
+      const grant = realtimeGrantSchema.parse(
+        await api("check", { connectionId: connection.grant.connectionId })
+      )
+      if (
+        grant.accountId !== connection.grant.accountId ||
+        grant.conversationId !== connection.grant.conversationId ||
+        grant.expiresAt !== connection.grant.expiresAt
+      )
+        throw new AccessFailure(401)
+      return !connection.closed
+    } catch (error) {
+      close(
+        connection,
+        error instanceof AccessFailure && error.status === 404
+          ? 4003
+          : error instanceof AccessFailure && error.status === 401
+            ? 4001
+            : 1013
+      )
+      return false
+    }
+  }
   function check(connection: Connection): Promise<boolean> {
     if (connection.closed) return Promise.resolve(false)
     const prior = checkTasks.get(connection)
     if (prior) return prior
-    if (checks >= 8) {
-      close(connection, 1013)
-      return Promise.resolve(false)
-    }
-    checks++
-    const task = (async () => {
-      try {
-        const grant = realtimeGrantSchema.parse(
-          await api("check", { connectionId: connection.grant.connectionId })
-        )
-        if (
-          grant.accountId !== connection.grant.accountId ||
-          grant.conversationId !== connection.grant.conversationId ||
-          grant.expiresAt !== connection.grant.expiresAt
-        )
-          throw new AccessFailure(401)
-        return !connection.closed
-      } catch (error) {
-        close(
-          connection,
-          error instanceof AccessFailure && error.status === 404
-            ? 4003
-            : error instanceof AccessFailure && error.status === 401
-              ? 4001
-              : 1013
-        )
-        return false
-      } finally {
-        checks--
-        checkTasks.delete(connection)
-      }
-    })()
+    // One queued/running check per admitted socket bounds the queue. Normal
+    // polling bursts must not revoke healthy sockets beyond the HTTP limit.
+    const task = new Promise<boolean>((resolve) => {
+      waitingChecks.push({ connection, resolve })
+    })
     checkTasks.set(connection, task)
+    drainChecks()
     return task
   }
   async function subscribe(connection: Connection) {

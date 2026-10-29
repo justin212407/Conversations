@@ -292,6 +292,125 @@ test("stop during connecting or token resolution cannot create work or unhandled
   assert.equal(transport.current().phase, "idle")
 })
 
+test("transport can restart after stopping during a pending snapshot and ignores the old completion", async (t) => {
+  const f = data()
+  let snapshotCalls = 0,
+    resolveOld
+  const old = new Promise((resolve) => {
+    resolveOld = resolve
+  })
+  const transport = createConversationConnection({
+    apiUrl: "http://fixture.invalid",
+    conversationId: f.id,
+    getToken: async () => "signed-fixture",
+    onChange: () => {},
+    fetch: async (url) => {
+      if (url.endsWith("realtime-tickets"))
+        return new Response(
+          JSON.stringify({
+            ticket: "x".repeat(43),
+            url: "ws://fixture.invalid/v1/connect?ticket=" + "x".repeat(43),
+          })
+        )
+      snapshotCalls++
+      return snapshotCalls === 1
+        ? old
+        : new Response(
+            JSON.stringify({
+              ...f.snapshot,
+              conversation: { ...f.snapshot.conversation, title: "Current" },
+            })
+          )
+    },
+    createSocket: () => {
+      const socket = new Socket()
+      queueMicrotask(() =>
+        socket.emit("message", {
+          data: JSON.stringify({
+            version: 1,
+            type: "connection.ready",
+            connectionId: randomUUID(),
+            conversationId: f.id,
+            expiresAt: new Date(Date.now() + 60000).toISOString(),
+          }),
+        })
+      )
+      return socket
+    },
+  })
+  t.after(() => transport.stop())
+  transport.start()
+  await until(() => snapshotCalls === 1)
+  transport.stop()
+  transport.start()
+  await until(() => transport.current().phase === "live")
+  assert.equal(snapshotCalls, 2)
+  assert.equal(transport.current().state.conversation.title, "Current")
+  resolveOld(new Response(JSON.stringify(f.snapshot)))
+  await delay(20)
+  assert.equal(transport.current().state.conversation.title, "Current")
+})
+
+test("resubscribe acknowledgement has a fresh deadline and recovers through a new ticket", async (t) => {
+  const f = data(),
+    changes = []
+  let tickets = 0,
+    socket
+  const transport = createConversationConnection({
+    apiUrl: "http://fixture.invalid",
+    conversationId: f.id,
+    timeoutMs: 100,
+    random: () => 0,
+    getToken: async () => "signed-fixture",
+    onChange: (value) => changes.push(value.phase),
+    fetch: async (url) => {
+      if (url.endsWith("realtime-tickets")) {
+        tickets++
+        return new Response(
+          JSON.stringify({
+            ticket: "x".repeat(43),
+            url: "ws://fixture.invalid/v1/connect?ticket=" + "x".repeat(43),
+          })
+        )
+      }
+      return new Response(JSON.stringify(f.snapshot))
+    },
+    createSocket: () => {
+      socket = new Socket()
+      const current = socket,
+        connectionId = randomUUID()
+      const control = (type) =>
+        current.emit("message", {
+          data: JSON.stringify({
+            version: 1,
+            type,
+            connectionId,
+            conversationId: f.id,
+            expiresAt: new Date(Date.now() + 60000).toISOString(),
+          }),
+        })
+      current.send = (text) => {
+        if (JSON.parse(text).type === "unsubscribe")
+          control("connection.unsubscribed")
+      }
+      queueMicrotask(() => control("connection.ready"))
+      return current
+    },
+  })
+  t.after(() => transport.stop())
+  transport.start()
+  await until(() => transport.current().phase === "live")
+  transport.subscribe()
+  await delay(150)
+  assert.equal(tickets, 1, "An already desired subscription remains idempotent")
+  transport.unsubscribe()
+  assert.equal(transport.current().phase, "unsubscribed")
+  transport.subscribe()
+  await until(() => tickets >= 2)
+  await until(() => transport.current().phase === "live")
+  assert.ok(changes.includes("disconnected"))
+})
+
 test("realtime configuration fails closed in production and shares exact development Origins without exposing secrets", () => {
   const secret = "s".repeat(43)
   for (const env of [

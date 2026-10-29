@@ -49,7 +49,7 @@ export async function fixture(t, options = {}) {
       const realtime = createRealtimeApi({ redis, store, auth, config }),
         check = realtime.check
       realtime.check = async (id) => {
-        await options.onCheck?.()
+        await options.onCheck?.(id)
         return check(id)
       }
       return realtime

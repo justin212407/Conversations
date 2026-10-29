@@ -278,6 +278,12 @@ export function createConversationConnection(options: {
     frames = []
     bytes = 0
   }
+  function armAcknowledgementDeadline(current: number) {
+    clearTimeout(deadline)
+    deadline = setTimeout(() => {
+      if (current === epoch && !stopped && desired) reconnect()
+    }, timeoutMs)
+  }
   async function request(path: string, method = "GET", payload?: unknown) {
     const signal = controller
       ? AbortSignal.any([controller.signal, AbortSignal.timeout(timeoutMs)])
@@ -410,10 +416,7 @@ export function createConversationConnection(options: {
   async function connect() {
     if (stopped) return
     const current = ++epoch
-    clearTimeout(deadline)
-    deadline = setTimeout(() => {
-      if (current === epoch && !stopped) reconnect()
-    }, timeoutMs)
+    armAcknowledgementDeadline(current)
     controller = new AbortController()
     phase = "connecting"
     emit()
@@ -504,11 +507,15 @@ export function createConversationConnection(options: {
       if (!stopped) return
       stopped = false
       desired = true
+      reconciling = false
+      reconciliation++
       void connect()
     },
     stop() {
       stopped = true
       epoch++
+      reconciling = false
+      reconciliation++
       clearTimeout(retry)
       clearTimeout(deadline)
       controller?.abort()
@@ -521,6 +528,7 @@ export function createConversationConnection(options: {
     },
     unsubscribe() {
       desired = false
+      clearTimeout(deadline)
       reconciliation++
       reconciling = false
       resetBuffer()
@@ -528,10 +536,16 @@ export function createConversationConnection(options: {
         socket.send(JSON.stringify({ version: 1, type: "unsubscribe" }))
     },
     subscribe() {
+      if (desired) return
       desired = true
-      if (socket?.readyState === 1)
+      if (socket?.readyState === 1) {
+        const current = epoch
+        armAcknowledgementDeadline(current)
+        phase = "connecting"
+        emit()
+        if (stopped || current !== epoch || !desired) return
         socket.send(JSON.stringify({ version: 1, type: "subscribe" }))
-      else if (!stopped) reconnect()
+      } else if (!stopped) reconnect()
     },
     current() {
       return { phase, state }
