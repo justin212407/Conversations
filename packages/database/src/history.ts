@@ -4,7 +4,7 @@ import { getTableColumns } from "drizzle-orm"
 import type { Database } from "./access.js"
 import { withOwnedConversation } from "./access.js"
 import { InvalidInput, isUuid } from "./errors.js"
-import { conversations, messages } from "./schema.js"
+import { conversations, messages, operations } from "./schema.js"
 
 const encode = (value: Record<string, unknown>) =>
   Buffer.from(JSON.stringify(value)).toString("base64url")
@@ -142,8 +142,19 @@ export class ConversationHistory {
       conversationId,
       async (tx) => {
         const rows = await tx
-          .select()
+          .select({
+            ...getTableColumns(messages),
+            operationId: operations.id,
+            failureCode: operations.failureCode,
+          })
           .from(messages)
+          .leftJoin(
+            operations,
+            and(
+              eq(operations.conversationId, messages.conversationId),
+              eq(operations.assistantMessageId, messages.id)
+            )
+          )
           .where(
             and(
               eq(messages.conversationId, conversationId),

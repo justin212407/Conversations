@@ -1,13 +1,23 @@
 import assert from "node:assert/strict"
 import { spawn } from "node:child_process"
 import { once } from "node:events"
+import { randomUUID } from "node:crypto"
+import { createRequire } from "node:module"
 import { createServer } from "node:net"
 import { setTimeout as delay } from "node:timers/promises"
 import { migrateDatabase } from "../packages/database/dist/index.js"
 import { createTestDatabase } from "../packages/database/test/database-fixture.mjs"
+import { redisConnectionOptions } from "../packages/service-runtime/dist/index.js"
+import { TEXT_GENERATION_QUEUE } from "../packages/shared/dist/index.js"
+
+const { Queue } = createRequire(
+  new URL("../apps/worker/package.json", import.meta.url)
+)("bullmq")
+const textQueuePrefixes = []
 
 const environment = {
   ...process.env,
+  TEXT_PROVIDER: "deterministic",
   NODE_ENV: "test",
   HOST: "127.0.0.1",
   LOG_LEVEL: "silent",
@@ -31,8 +41,15 @@ async function availablePort() {
 }
 
 function start(file, overrides = {}) {
+  // Every worker owns a different temporary database, so it must also own a
+  // different queue even when the caller supplies a live TEXT_QUEUE_PREFIX.
+  const workerEnvironment = {}
+  if (file === "apps/worker/dist/index.js") {
+    workerEnvironment.TEXT_QUEUE_PREFIX = "smoke_" + randomUUID()
+    textQueuePrefixes.push(workerEnvironment.TEXT_QUEUE_PREFIX)
+  }
   const child = spawn(process.execPath, [file], {
-    env: { ...environment, ...overrides },
+    env: { ...environment, ...overrides, ...workerEnvironment },
     stdio: ["ignore", "pipe", "pipe"],
   })
   let output = ""
@@ -44,7 +61,7 @@ function start(file, overrides = {}) {
     child.once("error", reject)
     child.once("exit", (code, signal) => resolve({ code, signal, output }))
   })
-  return { child, exit }
+  return { child, exit, file }
 }
 
 async function waitForHealth(port, path, expectedStatus, processHandle) {
@@ -135,11 +152,64 @@ try {
     "failure: unavailable Redis leaves liveness up and readiness down"
   )
 
+  const workerPort = await availablePort()
+  const unavailableWorker = start("apps/worker/dist/index.js", {
+    PORT: String(workerPort),
+    REDIS_URL: `redis://127.0.0.1:${unavailableRedisPort}`,
+  })
+  running.push(unavailableWorker)
+  assert.equal(
+    (await waitForHealth(workerPort, "/health/live", 200, unavailableWorker))
+      .status,
+    "alive"
+  )
+  assert.equal(
+    (await waitForHealth(workerPort, "/health/ready", 503, unavailableWorker))
+      .checks.redis,
+    "down"
+  )
+  console.log(
+    "worker failure: unavailable startup Redis retains HTTP liveness and clean shutdown ownership"
+  )
+
+  const unmigrated = await createTestDatabase()
+  try {
+    const schemaPort = await availablePort()
+    const schemaWorker = start("apps/worker/dist/index.js", {
+      PORT: String(schemaPort),
+      DATABASE_URL: unmigrated.connectionString,
+    })
+    running.push(schemaWorker)
+    assert.equal(
+      (await waitForHealth(schemaPort, "/health/live", 200, schemaWorker))
+        .status,
+      "alive"
+    )
+    assert.equal(
+      (await waitForHealth(schemaPort, "/health/ready", 503, schemaWorker))
+        .checks.schema,
+      "down"
+    )
+    await migrateDatabase(unmigrated.pool)
+    assert.equal(
+      (await waitForHealth(schemaPort, "/health/ready", 200, schemaWorker))
+        .checks.generation,
+      "up"
+    )
+    schemaWorker.child.kill("SIGTERM")
+    assert.equal((await within(schemaWorker.exit, 6000)).code, 0)
+    console.log(
+      "worker schema: unmigrated startup remains unready, recovers after explicit migration, and exits cleanly"
+    )
+  } finally {
+    await unmigrated.close()
+  }
+
   for (const handle of running) {
     if (handle.child.exitCode !== null) continue
     handle.child.kill("SIGTERM")
     const result = await within(handle.exit, 6000)
-    assert.equal(result.code, 0, "Service must drain and exit cleanly")
+    assert.equal(result.code, 0, handle.file + " must drain and exit cleanly")
     assert.equal(result.signal, null)
   }
   console.log("shutdown: every child service drained and exited with code 0")
@@ -154,5 +224,26 @@ try {
       }
     }
   }
-  await database.close()
+  try {
+    for (const prefix of textQueuePrefixes) {
+      const queue = new Queue(TEXT_GENERATION_QUEUE, {
+        prefix,
+        connection: {
+          ...redisConnectionOptions(environment.REDIS_URL),
+          maxRetriesPerRequest: 1,
+          enableOfflineQueue: false,
+          connectTimeout: 1500,
+          commandTimeout: 1500,
+        },
+      })
+      queue.on("error", () => {})
+      try {
+        await within(queue.obliterate({ force: true }), 3000)
+      } finally {
+        await queue.close()
+      }
+    }
+  } finally {
+    await database.close()
+  }
 }

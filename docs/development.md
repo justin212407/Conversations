@@ -1,6 +1,6 @@
 # Local development
 
-The [Slice 1](slice-1.md) services provide API/worker/realtime processes, health checks, and a real queue probe. PostgreSQL/Drizzle and Clerk support personal accounts, owned conversation CRUD/history, durable text commands, and controlled retry. [Conversation API guidance](conversation-api.md) describes the implemented routes and server-only handoff/finalization interfaces; runtime OpenAPI is at `/openapi.json`. Model generation, application sockets, and the new UI remain subsequent issues.
+The [Slice 1](slice-1.md) services provide API/worker/realtime processes, health checks, and a real queue probe. PostgreSQL/Drizzle and Clerk support personal accounts, owned conversation CRUD/history, durable text generation, and controlled retry. [Conversation API guidance](conversation-api.md) describes the implemented routes and server-only handoff/finalization interfaces; runtime OpenAPI is at `/openapi.json`. [Text generation](text-generation.md) describes the separate Gemini worker and deterministic verification. Application sockets and the new UI remain subsequent issues.
 
 ## Prerequisites
 
@@ -13,6 +13,8 @@ The [Slice 1](slice-1.md) services provide API/worker/realtime processes, health
 
 ```sh
 cp .env.example .env
+# Set TEXT_PROVIDER=deterministic for credential-free development.
+# For real generation, configure GOOGLE_GENERATIVE_AI_API_KEY instead.
 docker compose up --build -d
 docker compose ps
 curl --fail http://localhost:4300/health/ready
@@ -25,7 +27,7 @@ The API, realtime, and worker ports are 4300, 4301, and 4302. Host PostgreSQL is
 
 Compose runs the one-shot `migrate` service after PostgreSQL is healthy and waits for its success before starting the API. Restarting an API process never implicitly migrates the database.
 
-`/health/live` means the process serves HTTP. `/health/ready` checks live PostgreSQL/Redis connectivity as appropriate; the worker also checks its actual BullMQ backend. Dependency failure returns 503 without exposing credentials. Signal-driven shutdown drains work and closes connections within a deadline.
+`/health/live` means the process serves HTTP. `/health/ready` checks live PostgreSQL/Redis connectivity as appropriate; the worker also checks its schema, BullMQ backends and provider configuration. Missing development Gemini settings leaves generation unready and admitted work visibly failed; production refuses startup. Worker health/shutdown stay available during schema/Redis startup failures, and generation starts only after the expected schema is available. Dependency failure returns 503 without exposing credentials. Signal-driven shutdown stops intake, cancels/drains model tasks through durable interruption, and closes connections within a deadline.
 
 ## Run services on the host
 
@@ -50,13 +52,13 @@ pnpm services:smoke
 pnpm services:probe
 ```
 
-The smoke check needs local PostgreSQL/Redis and compiled service output. It creates and migrates an isolated database, starts temporary service processes on free ports, checks real dependency/schema readiness, unauthenticated `/v1/me` rejection, and queue execution, verifies a dependency outage, and confirms clean SIGTERM shutdown. It cleans up its child processes and temporary database. The standalone probe requires a running worker. `services:test` includes actual PostgreSQL ownership/concurrency/upgrade tests and signed local RSA fixtures through the real Clerk verification SDK; it does not require live provider secrets.
+The smoke check needs local PostgreSQL/Redis and compiled service output. It creates and migrates an isolated database, starts temporary service processes on free ports, checks real dependency/schema readiness, unauthenticated `/v1/me` rejection, and queue execution, verifies Redis startup outages and worker migration recovery, and confirms clean SIGTERM shutdown. It cleans up its child processes and temporary database. The standalone probe requires a running worker. `services:test` includes actual PostgreSQL ownership/concurrency/upgrade tests and signed local RSA fixtures through the real Clerk verification SDK; it includes deterministic real Redis/BullMQ worker integration and SDK SSE fixtures, without live provider secrets.
 
 ## Migrations
 
-`packages/database` contains the Drizzle schema, generated SQL/snapshots/journal, and the explicit `pnpm services:migrate` command. Migration 0000 installs accounts; 0001 adds conversations/messages; 0002 adds operation/request identities, durable event/job handoff, and final-delivery receipts. The reviewed 0002 SQL creates prerequisite unique indexes before their composite foreign keys. Apply committed migrations before service rollout. Concurrent runners serialize using a database advisory lock on one connection, with a 10-second lock timeout and 30-second statement timeout. Do not edit an applied migration; update the schema and run `pnpm --filter @conversations/database generate --name <change>` to generate the next migration, then review its dependency ordering.
+`packages/database` contains the Drizzle schema, generated SQL/snapshots/journal, and the explicit `pnpm services:migrate` command. Migration 0000 installs accounts; 0001 adds conversations/messages; 0002 adds operation/request identities, durable event/job handoff, and final-delivery receipts. Migration 0003 adds safe generation failures and unique assistant-operation linkage. The reviewed 0002 SQL creates prerequisite unique indexes before their composite foreign keys. Apply committed migrations before service rollout. Concurrent runners serialize using a database advisory lock on one connection, with a 10-second lock timeout and 30-second statement timeout. Do not edit an applied migration; update the schema and run `pnpm --filter @conversations/database generate --name <change>` to generate the next migration, then review its dependency ordering.
 
-API readiness verifies every expected migration hash and the required tables, while tolerating additive ahead migrations during a rolling deployment. Missing or altered history keeps readiness at 503. No command imports or removes old Convex data.
+API and worker readiness verify every expected migration hash and the required tables, while tolerating additive ahead migrations during a rolling deployment. Missing or altered history keeps readiness at 503. No command imports or removes old Convex data.
 
 ## Authentication and the account boundary
 

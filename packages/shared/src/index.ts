@@ -36,6 +36,48 @@ export interface EventEnvelope<Type extends string, Payload> {
 }
 
 export const TEXT_GENERATION_QUEUE = "conversations-text"
+export const requestCorrelationSchema = z
+  .object({
+    requestId: z.string().min(1).max(255),
+    traceparent: z
+      .string()
+      .regex(
+        /^(?!ff)[0-9a-f]{2}-(?!0{32})[0-9a-f]{32}-(?!0{16})[0-9a-f]{16}-[0-9a-f]{2}$/
+      )
+      .optional(),
+    tracestate: z
+      .string()
+      .min(1)
+      .max(512)
+      .regex(/^[\x20-\x7e]+$/)
+      .optional(),
+  })
+  .strict()
+export type RequestCorrelation = z.infer<typeof requestCorrelationSchema>
+export const MAX_CONTEXT_MESSAGES = 100
+export const MAX_CONTEXT_CHARACTERS = 64000
+export const MAX_OUTPUT_CHARACTERS = 64000
+export function contextWithinLimits(
+  context: ReadonlyArray<{ content: string }>
+): boolean {
+  return (
+    context.length <= MAX_CONTEXT_MESSAGES &&
+    context.reduce(
+      (total, message) => total + [...message.content].length,
+      0
+    ) <= MAX_CONTEXT_CHARACTERS
+  )
+}
+export const generationFailureSchema = z.enum([
+  "provider_unavailable",
+  "provider_error",
+  "timeout",
+  "context_limit",
+  "output_limit",
+  "interrupted",
+  "expired",
+])
+export type GenerationFailure = z.infer<typeof generationFailureSchema>
 export const textGenerationJobSchema = z
   .object({
     version: z.literal(1),
@@ -43,7 +85,7 @@ export const textGenerationJobSchema = z
     accountId: z.string().uuid(),
     conversationId: z.string().uuid(),
     inputMessageId: z.string().uuid(),
-    correlation: z.object({ requestId: z.string().min(1).max(255) }).strict(),
+    correlation: requestCorrelationSchema,
   })
   .strict()
 export type TextGenerationJob = z.infer<typeof textGenerationJobSchema>
@@ -65,6 +107,8 @@ export const messageDataSchema = z
     ]),
     createdAt: z.string().datetime(),
     updatedAt: z.string().datetime(),
+    operationId: z.string().uuid().nullable().optional(),
+    failureCode: generationFailureSchema.nullable().optional(),
   })
   .strict()
 export type MessageData = z.infer<typeof messageDataSchema>
@@ -82,6 +126,7 @@ export const operationAdmissionSchema = z
       "interrupted",
     ]),
     expiresAt: z.string().datetime(),
+    failureCode: generationFailureSchema.nullable().optional(),
   })
   .strict()
 export type OperationAdmission = z.infer<typeof operationAdmissionSchema>
@@ -93,6 +138,7 @@ const envelope = z
     conversationId: z.string().uuid(),
     sequence: z.number().int().positive(),
     occurredAt: z.string().datetime(),
+    correlation: requestCorrelationSchema.optional(),
   })
   .strict()
 const conversationPayload = z
@@ -188,3 +234,37 @@ export const domainEventSchema = z
     }
   })
 export type DomainEvent = z.infer<typeof domainEventSchema>
+
+// sequence is an observed durable checkpoint, NOT a new conversation event.
+// revision orders replaceable content for this public stream/message identity.
+export const provisionalMessageSnapshotSchema = z
+  .object({
+    version: z.literal(1),
+    eventId: z.string().uuid(),
+    type: z.literal("message.snapshot"),
+    conversationId: z.string().uuid(),
+    sequence: z.number().int().nonnegative(),
+    occurredAt: z.string().datetime(),
+    correlation: requestCorrelationSchema.optional(),
+    payload: z
+      .object({
+        messageId: z.string().uuid(),
+        operationId: z.string().uuid(),
+        streamId: z.string().uuid(),
+        revision: z.number().int().positive(),
+        state: z.literal("streaming"),
+        content: z
+          .string()
+          .refine((value) => [...value].length <= MAX_OUTPUT_CHARACTERS),
+      })
+      .strict(),
+  })
+  .strict()
+export type ProvisionalMessageSnapshot = z.infer<
+  typeof provisionalMessageSnapshotSchema
+>
+export const provisionalChannel = (conversationId: string) => {
+  if (!z.string().uuid().safeParse(conversationId).success)
+    throw new Error("Invalid conversation identity")
+  return "conversations:snapshots:" + conversationId.toLowerCase()
+}

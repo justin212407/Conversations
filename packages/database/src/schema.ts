@@ -131,6 +131,15 @@ export const operationState = pgEnum("operation_state", [
   "interrupted",
 ])
 export const operationKind = pgEnum("operation_kind", ["text", "voice"])
+export const generationFailure = pgEnum("generation_failure", [
+  "provider_unavailable",
+  "provider_error",
+  "timeout",
+  "context_limit",
+  "output_limit",
+  "interrupted",
+  "expired",
+])
 export const operations = pgTable(
   "operations",
   {
@@ -147,6 +156,7 @@ export const operations = pgTable(
       onDelete: "restrict",
     }),
     executionToken: uuid("execution_token"),
+    failureCode: generationFailure("failure_code"),
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
     resultHash: text("result_hash"),
     completedAt: timestamp("completed_at", { withTimezone: true }),
@@ -155,6 +165,9 @@ export const operations = pgTable(
       .defaultNow(),
   },
   (table) => [
+    uniqueIndex("operations_assistant_message_idx")
+      .on(table.assistantMessageId)
+      .where(sql`${table.assistantMessageId} IS NOT NULL`),
     uniqueIndex("operations_account_request_idx").on(
       table.accountId,
       table.clientRequestId

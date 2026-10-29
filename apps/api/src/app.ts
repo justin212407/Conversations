@@ -19,6 +19,10 @@ import {
 import { object, pageQuery, text, uuid } from "./validation.js"
 import { openapi } from "./openapi.js"
 import cors from "@fastify/cors"
+import {
+  requestCorrelationSchema,
+  type GenerationFailure,
+} from "@conversations/shared"
 
 function conversationProjection(conversation: Conversation) {
   return {
@@ -29,7 +33,12 @@ function conversationProjection(conversation: Conversation) {
     updatedAt: conversation.updatedAt.toISOString(),
   }
 }
-function messageProjection(message: Message) {
+function messageProjection(
+  message: Message & {
+    operationId?: string | null
+    failureCode?: GenerationFailure | null
+  }
+) {
   return {
     id: message.id,
     conversationId: message.conversationId,
@@ -40,7 +49,17 @@ function messageProjection(message: Message) {
     state: message.state,
     createdAt: message.createdAt.toISOString(),
     updatedAt: message.updatedAt.toISOString(),
+    operationId: message.operationId ?? null,
+    failureCode: message.failureCode ?? null,
   }
+}
+function correlation(requestId: string, headers: Record<string, unknown>) {
+  const parsed = requestCorrelationSchema.safeParse({
+    requestId,
+    traceparent: headers.traceparent,
+    tracestate: headers.tracestate,
+  })
+  return parsed.success ? parsed.data : { requestId }
 }
 export function createApi(
   config: ServiceConfig,
@@ -226,7 +245,7 @@ export function createApi(
             id,
             uuid(body.clientRequestId),
             text(body.content, 16000),
-            request.id
+            correlation(request.id, request.headers)
           )
         )
     })
@@ -244,7 +263,7 @@ export function createApi(
               uuid(params.id),
               uuid(params.operationId),
               uuid(body.clientRequestId),
-              request.id
+              correlation(request.id, request.headers)
             )
           )
       }

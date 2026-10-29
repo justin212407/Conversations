@@ -1,0 +1,3 @@
+CREATE TYPE "public"."generation_failure" AS ENUM('provider_unavailable', 'provider_error', 'timeout', 'context_limit', 'output_limit', 'interrupted', 'expired');--> statement-breakpoint
+ALTER TABLE "operations" ADD COLUMN "failure_code" "generation_failure";--> statement-breakpoint
+CREATE UNIQUE INDEX "operations_assistant_message_idx" ON "operations" USING btree ("assistant_message_id") WHERE "operations"."assistant_message_id" IS NOT NULL;
