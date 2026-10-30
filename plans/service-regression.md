@@ -7,6 +7,7 @@ specs:
   - specs/behaviors/service-foundation.md
   - specs/behaviors/observability.md
   - specs/api/conversations.md
+  - specs/behaviors/service-regression.md
 issues: [25]
 ---
 
