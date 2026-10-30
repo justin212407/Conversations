@@ -39,6 +39,8 @@ services:
       - --storage.tsdb.path=/prometheus
       - --storage.tsdb.retention.time=6h
       - --storage.tsdb.retention.size=128MB
+      # Default 128MB WAL segments exceed this small ephemeral store's budget.
+      - --storage.tsdb.wal-segment-size=16MB
       - --query.max-concurrency=4
       - --query.max-samples=100000
     volumes:
