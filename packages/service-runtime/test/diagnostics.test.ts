@@ -173,6 +173,40 @@ test("real SDK spans retain causal trace IDs while dropping tracestate and bagga
   )
 })
 
+test("router decoding failures log their returned request ID once without the raw URL", async (t) => {
+  const lines: string[] = []
+  const diag = new Diagnostics(loadConfig("api", env), {
+    stream: {
+      write: (line) => {
+        lines.push(line)
+      },
+    },
+  })
+  const app = createHealthServer(
+    diag.config,
+    { dependencies: [], close: async () => {} },
+    undefined,
+    diag
+  )
+  t.after(() => app.close())
+  const response = await app.inject({ url: "/%XX?ticket=" + canary })
+  assert.equal(response.statusCode, 400)
+  const requestId = response.json().requestId
+  assert.match(requestId, /^[a-f0-9-]{36}$/)
+  const completed = lines
+    .map((line) => JSON.parse(line))
+    .filter(
+      (row) => row.msg === "http.completed" && row.requestId === requestId
+    )
+  assert.equal(completed.length, 1)
+  assert.equal(completed[0].route, "unmatched")
+  assert.equal(completed[0].method, "GET")
+  assert.equal(completed[0].statusCode, 400)
+  assert.equal(typeof completed[0].durationMs, "number")
+  assert.ok(!lines.join("").includes(canary))
+  assert.ok(!lines.join("").includes("/%XX"))
+})
+
 test("remote sampled flag cannot override configured sampling or hang shutdown", async () => {
   const exporter = new InMemorySpanExporter()
   const diag = new Diagnostics(

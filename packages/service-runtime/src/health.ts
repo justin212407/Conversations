@@ -83,16 +83,31 @@ export function createHealthServer(
     // Router decoding failures occur before the application's error handler.
     // Never let the framework echo a malformed path or ticket-bearing query.
     frameworkErrors(error, request, reply: FastifyReply) {
-      const invalid = error.code === "FST_ERR_BAD_URL"
-      diag.http("unmatched", request.method, invalid ? 400 : 503, 0)
-      reply.code(invalid ? 400 : 503).send({
+      const invalid = error.code === "FST_ERR_BAD_URL",
+        status = invalid ? 400 : 503,
+        requestId = request.id || randomUUID(),
+        durationMs = reply.elapsedTime
+      diag.http("unmatched", request.method, status, durationMs / 1000)
+      // Router failures bypass onResponse, so their returned ID needs its own
+      // safe completion record. Never include the framework error or raw path.
+      diag.logger.info(
+        {
+          requestId,
+          route: "unmatched",
+          method: normalizedMethod(request.method),
+          statusCode: status,
+          durationMs: Math.round(durationMs),
+        },
+        "http.completed"
+      )
+      reply.code(status).send({
         error: {
           code: invalid ? "INVALID_INPUT" : "DEPENDENCY_UNAVAILABLE",
           message: invalid
             ? "Invalid request"
             : "Service temporarily unavailable",
         },
-        requestId: request.id || randomUUID(),
+        requestId,
       })
     },
     requestTimeout: 10000,
