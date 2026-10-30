@@ -46,6 +46,7 @@ export async function createConversationApi(t, options = {}) {
       DATABASE_URL: database.connectionString,
       REDIS_URL: "redis://localhost",
       LOG_LEVEL: "info",
+      ...options.environment,
     }),
     { dependencies: [], close: async () => {} },
     store,

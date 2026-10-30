@@ -389,7 +389,8 @@ export class ConversationCommands {
     operation: Operation,
     state: TerminalState,
     content: string,
-    failureCode?: GenerationFailure
+    failureCode?: GenerationFailure,
+    resultCorrelation?: RequestCorrelation
   ) {
     const resultHash = hash({
       state,
@@ -441,7 +442,9 @@ export class ConversationCommands {
       )
       .limit(1)
     const command = textGenerationJobSchema.safeParse(jobHandoff?.payload)
-    const correlation = command.success ? command.data.correlation : undefined
+    const correlation =
+      resultCorrelation ??
+      (command.success ? command.data.correlation : undefined)
     await appendEvent(
       tx,
       operation.conversationId,
@@ -476,6 +479,7 @@ export class ConversationCommands {
       content: string
       executionToken?: string
       failureCode?: GenerationFailure
+      correlation?: RequestCorrelation
     }
   ) {
     if (
@@ -493,6 +497,10 @@ export class ConversationCommands {
         result.state === "completed")
     )
       throw new InvalidInput()
+    const resultCorrelation =
+      result.correlation === undefined
+        ? undefined
+        : requestCorrelationSchema.parse(result.correlation)
     const executionToken =
       result.executionToken === undefined
         ? undefined
@@ -529,7 +537,8 @@ export class ConversationCommands {
           operation.operation,
           result.state,
           result.content,
-          result.failureCode
+          result.failureCode,
+          resultCorrelation
         )
       }
     )

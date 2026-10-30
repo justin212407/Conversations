@@ -18,6 +18,19 @@ const envSchema = z.object({
   LOG_LEVEL: z
     .enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"])
     .default("info"),
+  METRICS_BEARER_TOKEN: z.preprocess(
+    (value) => (value === "" ? undefined : value),
+    z
+      .string()
+      .regex(/^[A-Za-z0-9_-]{43,256}$/)
+      .optional()
+  ),
+  OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: z.preprocess(
+    (value) => (value === "" ? undefined : value),
+    z.string().url().optional()
+  ),
+  TRACE_SAMPLE_RATIO: z.coerce.number().min(0).max(1).default(0.1),
+  OBSERVABILITY_ALLOW_PRIVATE_HTTP: z.enum(["true", "false"]).default("false"),
   REDIS_URL: address(["redis:", "rediss:"]).refine((value) => {
     const db = new URL(value).pathname.slice(1)
     return db === "" || /^\d+$/.test(db)
@@ -51,6 +64,22 @@ export function loadConfig(
   }
   if (service !== "realtime" && !parsed.data.DATABASE_URL) {
     throw new Error("Invalid service configuration: DATABASE_URL is required")
+  }
+  if (parsed.data.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT) {
+    const url = new URL(parsed.data.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT)
+    if (
+      !["http:", "https:"].includes(url.protocol) ||
+      url.username ||
+      url.password ||
+      url.search ||
+      url.hash ||
+      (parsed.data.NODE_ENV === "production" &&
+        url.protocol !== "https:" &&
+        parsed.data.OBSERVABILITY_ALLOW_PRIVATE_HTTP !== "true")
+    )
+      throw new Error(
+        "Invalid service configuration: OTEL_EXPORTER_OTLP_TRACES_ENDPOINT"
+      )
   }
   return { ...parsed.data, service }
 }

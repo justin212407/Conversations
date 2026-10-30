@@ -299,3 +299,23 @@ test("Clerk JWKS outages return 503 through the SDK network seam without provisi
     await app.close()
   }
 })
+
+test("production authorized parties require explicit HTTPS origins", () => {
+  const base = {
+    NODE_ENV: "production",
+    CLERK_JWT_ISSUER_DOMAIN: issuer,
+    CLERK_SECRET_KEY: "fixture-only-secret",
+  }
+  assert.throws(() =>
+    loadAuthConfig({
+      ...base,
+      CLERK_AUTHORIZED_PARTIES: "http://workspace.example",
+    })
+  )
+  assert.ok(
+    loadAuthConfig({
+      ...base,
+      CLERK_AUTHORIZED_PARTIES: "https://workspace.example",
+    })
+  )
+})

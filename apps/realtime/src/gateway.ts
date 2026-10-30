@@ -4,6 +4,9 @@ import { WebSocketServer, WebSocket } from "ws"
 import { Redis } from "ioredis"
 import {
   redisConnectionOptions,
+  publicCorrelation,
+  type Diagnostics,
+  type DiagnosticSpan,
   type RealtimeConfig,
 } from "@conversations/service-runtime"
 import {
@@ -33,6 +36,17 @@ type Connection = {
   subscription: number
   buffer: string[]
   bytes: number
+  diagnostic?: DiagnosticSpan
+  closeReason?:
+    | "heartbeat"
+    | "redis_interruption"
+    | "buffer_limit"
+    | "client_closed"
+    | "shutdown"
+    | "protocol"
+    | "unauthorized"
+    | "inaccessible"
+    | "dependency_unavailable"
   controlCount: number
   controlWindow: number
   expiry: NodeJS.Timeout
@@ -46,6 +60,7 @@ export function createGateway(options: {
   server: Server
   redisUrl: string
   config: RealtimeConfig
+  diagnostics?: Diagnostics
 }) {
   const { config } = options
   const subscriber = new Redis({
@@ -91,10 +106,18 @@ export function createGateway(options: {
     if (!response.ok) throw new AccessFailure(response.status)
     return response.json()
   }
-  function send(connection: Connection, text: string) {
-    if (connection.closed) return
+  function send(
+    connection: Connection,
+    text: string,
+    sent?: (ok: boolean) => void
+  ) {
+    if (connection.closed) {
+      sent?.(false)
+      return
+    }
     if (Date.parse(connection.grant.expiresAt) <= Date.now()) {
       close(connection, 4001)
+      sent?.(false)
       return
     }
     if (
@@ -102,12 +125,43 @@ export function createGateway(options: {
       connection.ws.bufferedAmount + Buffer.byteLength(text) >
         MAX_REALTIME_BUFFER_BYTES
     ) {
-      close(connection, 1013)
+      close(connection, 1013, "buffer_limit")
+      sent?.(false)
       return
     }
     connection.ws.send(text, (error) => {
       if (error) close(connection, 1013)
+      sent?.(!error)
     })
+  }
+  function sendEvent(
+    connection: Connection,
+    event:
+      | import("@conversations/shared").DomainEvent
+      | import("@conversations/shared").ProvisionalMessageSnapshot
+  ) {
+    const fields = {
+      connectionId: connection.grant.connectionId,
+      conversationId: event.conversationId,
+      eventId: event.eventId,
+      requestId: event.correlation?.requestId,
+    }
+    if (event.type === "message.snapshot") {
+      options.diagnostics?.count("event.deliver")
+      send(connection, JSON.stringify(publicCorrelation(event)))
+      return
+    }
+    const span = options.diagnostics?.start(
+      "event.deliver",
+      fields,
+      event.correlation
+    )
+    send(connection, JSON.stringify(publicCorrelation(event)), (ok) =>
+      span?.finish(
+        ok ? "success" : "failed",
+        ok ? "none" : "dependency_unavailable"
+      )
+    )
   }
   function control(
     connection: Connection,
@@ -149,12 +203,29 @@ export function createGateway(options: {
     clearTimeout(connection.expiry)
     detach(connection)
     connections.delete(connection)
+    options.diagnostics?.connection(-1)
+    const reason = connection.closeReason ?? "client_closed"
+    options.diagnostics?.count("socket.close", "success", reason)
+    connection.diagnostic?.finish("success", reason)
     void api("release", { connectionId: connection.grant.connectionId }).catch(
       () => {}
     )
   }
-  function close(connection: Connection, code: number) {
+  function close(
+    connection: Connection,
+    code: number,
+    reason?: Connection["closeReason"]
+  ) {
     if (connection.closed) return
+    connection.closeReason =
+      reason ??
+      (code === 4001
+        ? "unauthorized"
+        : code === 4003
+          ? "inaccessible"
+          : code === 1008
+            ? "protocol"
+            : "dependency_unavailable")
     cleanup(connection)
     connection.ws.close(code, "Reconnect and reconcile")
     const timeout = setTimeout(() => connection.ws.terminate(), 1000)
@@ -255,8 +326,18 @@ export function createGateway(options: {
         return
       connection.subscribing = false
       connection.subscribed = true
+      options.diagnostics?.count("socket.subscribe")
       control(connection, "connection.ready")
-      for (const frame of connection.buffer) send(connection, frame)
+      for (const frame of connection.buffer) {
+        const raw = JSON.parse(frame)
+        const parsed = domainEventSchema.safeParse(raw)
+        sendEvent(
+          connection,
+          parsed.success
+            ? parsed.data
+            : provisionalMessageSnapshotSchema.parse(raw)
+        )
+      }
       connection.buffer = []
       connection.bytes = 0
     } catch {
@@ -293,16 +374,17 @@ export function createGateway(options: {
           connection.bytes > MAX_REALTIME_BUFFER_BYTES ||
           connection.buffer.length >= 256
         )
-          close(connection, 1013)
+          close(connection, 1013, "buffer_limit")
         else connection.buffer.push(payload)
       } else if (connection.subscribed) {
-        send(connection, payload)
+        sendEvent(connection, event)
         if (event.type === "conversation.deleted") close(connection, 4003)
       }
     }
   })
   const interrupted = () => {
-    for (const connection of [...connections]) close(connection, 1013)
+    for (const connection of [...connections])
+      close(connection, 1013, "redis_interruption")
   }
   subscriber.on("close", interrupted)
   subscriber.on("end", interrupted)
@@ -366,6 +448,11 @@ export function createGateway(options: {
           ),
         }
         connections.add(connection)
+        options.diagnostics?.connection(1)
+        connection.diagnostic = options.diagnostics?.start("socket.connect", {
+          connectionId: authorized.connectionId,
+          conversationId: authorized.conversationId,
+        })
         ws.on("error", () => {})
         ws.on("close", () => cleanup(connection))
         ws.on("pong", () => {
@@ -405,6 +492,13 @@ export function createGateway(options: {
         void subscribe(connection)
       })
     } catch (error) {
+      options.diagnostics?.count(
+        "socket.connect",
+        "failed",
+        error instanceof AccessFailure && error.status < 500
+          ? "unauthorized"
+          : "dependency_unavailable"
+      )
       if (grant)
         void api("release", { connectionId: grant.connectionId }).catch(
           () => {}
@@ -423,7 +517,7 @@ export function createGateway(options: {
   const heartbeat = setInterval(() => {
     for (const connection of connections) {
       if (!connection.alive) {
-        close(connection, 1001)
+        close(connection, 1001, "heartbeat")
         continue
       }
       connection.alive = false
@@ -453,13 +547,15 @@ export function createGateway(options: {
       clearInterval(heartbeat)
       clearInterval(access)
       for (const socket of upgrades) socket.destroy()
-      for (const connection of [...connections]) close(connection, 1001)
+      for (const connection of [...connections])
+        close(connection, 1001, "shutdown")
     },
     async close() {
       stopping = true
       clearInterval(heartbeat)
       clearInterval(access)
-      for (const connection of [...connections]) close(connection, 1001)
+      for (const connection of [...connections])
+        close(connection, 1001, "shutdown")
       subscriber.disconnect()
       await new Promise<void>((resolve) => wss.close(() => resolve()))
     },

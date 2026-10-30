@@ -1,4 +1,8 @@
 import {
+  type Diagnostics,
+  type DiagnosticSpan,
+} from "@conversations/service-runtime"
+import {
   createHash,
   randomBytes,
   randomUUID,
@@ -158,6 +162,7 @@ export async function relayConversationEvents(
   options: {
     shouldStop?: () => boolean
     afterPublish?: () => Promise<void>
+    diagnostics?: Diagnostics
   } = {}
 ) {
   const claimed = await store.handoff.claim("event", {
@@ -174,15 +179,41 @@ export async function relayConversationEvents(
       event.type !== row.type
     )
       throw new Error("Invalid durable event")
-    await redis.publish(
-      durableChannel(event.conversationId),
-      JSON.stringify(event)
-    )
-    await options.afterPublish?.()
-    if (row.leaseToken) await store.handoff.acknowledge(row.id, row.leaseToken)
+    const publish = async (span?: DiagnosticSpan) => {
+      const delivered =
+        span && event.correlation
+          ? {
+              ...event,
+              correlation: span.correlation(event.correlation.requestId),
+            }
+          : event
+      await redis.publish(
+        durableChannel(event.conversationId),
+        JSON.stringify(delivered)
+      )
+      await options.afterPublish?.()
+      if (row.leaseToken)
+        await store.handoff.acknowledge(row.id, row.leaseToken)
+    }
+    if (options.diagnostics)
+      await options.diagnostics.run(
+        "event.publish",
+        {
+          requestId: event.correlation?.requestId,
+          eventId: event.eventId,
+          conversationId: event.conversationId,
+        },
+        publish,
+        event.correlation
+      )
+    else await publish()
   }
 }
-export function createEventRelay(store: ConversationStore, redis: Redis) {
+export function createEventRelay(
+  store: ConversationStore,
+  redis: Redis,
+  diagnostics?: Diagnostics
+) {
   let timer: NodeJS.Timeout | undefined,
     pending: Promise<void> | undefined,
     stopping = false
@@ -190,8 +221,11 @@ export function createEventRelay(store: ConversationStore, redis: Redis) {
     if (stopping || pending) return
     pending = relayConversationEvents(store, redis, {
       shouldStop: () => stopping,
+      diagnostics,
     })
-      .catch(() => {})
+      .catch(() => {
+        diagnostics?.count("event.publish", "failed", "dependency_unavailable")
+      })
       .finally(() => {
         pending = undefined
       })

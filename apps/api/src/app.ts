@@ -7,6 +7,9 @@ import {
 } from "@conversations/database"
 import {
   createHealthServer,
+  serviceDiagnostics,
+  requestCorrelation,
+  type Diagnostics,
   type Resources,
   type ServiceConfig,
 } from "@conversations/service-runtime"
@@ -20,10 +23,7 @@ import { object, pageQuery, text, uuid } from "./validation.js"
 import { openapi } from "./openapi.js"
 import cors from "@fastify/cors"
 import type { RealtimeApi } from "./realtime.js"
-import {
-  requestCorrelationSchema,
-  type GenerationFailure,
-} from "@conversations/shared"
+import { type GenerationFailure } from "@conversations/shared"
 
 function conversationProjection(conversation: Conversation) {
   return {
@@ -54,23 +54,18 @@ function messageProjection(
     failureCode: message.failureCode ?? null,
   }
 }
-function correlation(requestId: string, headers: Record<string, unknown>) {
-  const parsed = requestCorrelationSchema.safeParse({
-    requestId,
-    traceparent: headers.traceparent,
-    tracestate: headers.tracestate,
-  })
-  return parsed.success ? parsed.data : { requestId }
-}
 export function createApi(
   config: ServiceConfig,
   resources: Resources,
   store: ConversationStore,
   auth: AuthConfig | undefined,
   logStream?: { write: (message: string) => void },
-  realtime?: RealtimeApi
+  realtime?: RealtimeApi,
+  diagnostics?: Diagnostics
 ): ReturnType<typeof createHealthServer> {
-  const app = createHealthServer(config, resources, logStream)
+  const app = createHealthServer(config, resources, logStream, diagnostics, {
+    customErrorHandler: true,
+  })
   // CORS sends its own plain-text error for malformed preflights. Validate
   // before that hook so these failures use the same safe JSON envelope.
   app.addHook("onRequest", async (request) => {
@@ -132,7 +127,43 @@ export function createApi(
       .code(status)
       .send({ error: { code, message }, requestId: request.id })
   })
-  app.get("/openapi.json", async () => openapi)
+  app.get("/openapi.json", async () => {
+    if (!serviceDiagnostics(app).metricsToken) return openapi
+    return {
+      ...openapi,
+      paths: {
+        ...openapi.paths,
+        "/metrics": {
+          get: {
+            summary: "Protected operational Prometheus scrape",
+            security: [{ MetricsBearer: [] }],
+            responses: {
+              "200": {
+                description: "Bounded process metrics",
+                content: {
+                  "text/plain": {
+                    schema: { type: "string" },
+                    example:
+                      'conversations_active_connections{service="api"} 0\n',
+                  },
+                },
+              },
+              "401": {
+                description: "Missing or invalid operational credential",
+              },
+            },
+          },
+        },
+      },
+      components: {
+        ...openapi.components,
+        securitySchemes: {
+          ...openapi.components.securitySchemes,
+          MetricsBearer: { type: "http", scheme: "bearer" },
+        },
+      },
+    }
+  })
   for (const action of ["redeem", "check", "release"] as const)
     app.post("/internal/realtime/" + action, async (request) => {
       if (!realtime) throw new AuthenticationUnavailable()
@@ -215,7 +246,8 @@ export function createApi(
       ])
       const conversation = await store.createConversation(
         accountId(request),
-        body.title === undefined ? undefined : text(body.title, 120)
+        body.title === undefined ? undefined : text(body.title, 120),
+        requestCorrelation(request)
       )
       return reply
         .code(201)
@@ -256,19 +288,29 @@ export function createApi(
       )
         throw new InvalidInput()
       return conversationProjection(
-        await store.updateConversation(accountId(request), id, {
-          title: body.title === undefined ? undefined : text(body.title, 120),
-          status: body.status as "active" | "archived" | undefined,
-        })
+        await store.updateConversation(
+          accountId(request),
+          id,
+          {
+            title: body.title === undefined ? undefined : text(body.title, 120),
+            status: body.status as "active" | "archived" | undefined,
+          },
+          requestCorrelation(request)
+        )
       )
     })
     user.delete("/v1/conversations/:id", async (request, reply) => {
       object(request.query, [])
       if (request.body !== undefined) throw new InvalidInput()
       const id = uuid(object(request.params, ["id"]).id)
-      await store.updateConversation(accountId(request), id, {
-        status: "deleted",
-      })
+      await store.updateConversation(
+        accountId(request),
+        id,
+        {
+          status: "deleted",
+        },
+        requestCorrelation(request)
+      )
       return reply.code(204).send()
     })
     user.get("/v1/conversations/:id/messages", async (request) => {
@@ -287,17 +329,27 @@ export function createApi(
       object(request.query, [])
       const id = uuid(object(request.params, ["id"]).id)
       const body = object(request.body, ["clientRequestId", "content"])
-      return reply
-        .code(202)
-        .send(
-          await store.commands.submitText(
-            accountId(request),
-            id,
-            uuid(body.clientRequestId),
-            text(body.content, 16000),
-            correlation(request.id, request.headers)
-          )
+      return reply.code(202).send(
+        await serviceDiagnostics(app).run(
+          "command.admit",
+          { requestId: request.id, conversationId: id },
+          async (span) => {
+            const admitted = await store.commands.submitText(
+              accountId(request),
+              id,
+              uuid(body.clientRequestId),
+              text(body.content, 16000),
+              span.correlation(request.id)
+            )
+            span.add({
+              operationId: admitted.operationId,
+              messageId: admitted.assistantMessageId ?? undefined,
+            })
+            return admitted
+          },
+          requestCorrelation(request)
         )
+      )
     })
     user.post(
       "/v1/conversations/:id/operations/:operationId/retry",
@@ -305,17 +357,27 @@ export function createApi(
         object(request.query, [])
         const params = object(request.params, ["id", "operationId"])
         const body = object(request.body, ["clientRequestId"])
-        return reply
-          .code(202)
-          .send(
-            await store.commands.retry(
-              accountId(request),
-              uuid(params.id),
-              uuid(params.operationId),
-              uuid(body.clientRequestId),
-              correlation(request.id, request.headers)
-            )
+        return reply.code(202).send(
+          await serviceDiagnostics(app).run(
+            "command.admit",
+            { requestId: request.id, conversationId: uuid(params.id) },
+            async (span) => {
+              const admitted = await store.commands.retry(
+                accountId(request),
+                uuid(params.id),
+                uuid(params.operationId),
+                uuid(body.clientRequestId),
+                span.correlation(request.id)
+              )
+              span.add({
+                operationId: admitted.operationId,
+                messageId: admitted.assistantMessageId ?? undefined,
+              })
+              return admitted
+            },
+            requestCorrelation(request)
           )
+        )
       }
     )
   })
