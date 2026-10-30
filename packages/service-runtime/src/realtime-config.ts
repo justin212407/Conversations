@@ -15,6 +15,7 @@ export function loadRealtimeConfig(env: NodeJS.ProcessEnv = process.env) {
         .regex(/^[A-Za-z0-9_-]{43,256}$/)
         .optional()
     ),
+    REALTIME_ALLOW_PRIVATE_HTTP: z.enum(["true", "false"]).default("false"),
     REALTIME_PUBLIC_URL: z
       .string()
       .url()
@@ -77,6 +78,7 @@ export function loadRealtimeConfig(env: NodeJS.ProcessEnv = process.env) {
         const url = new URL(value)
         return (
           !["http:", "https:"].includes(url.protocol) ||
+          (env.NODE_ENV === "production" && url.protocol !== "https:") ||
           url.origin !== value ||
           !!url.username ||
           !!url.password
@@ -88,7 +90,9 @@ export function loadRealtimeConfig(env: NodeJS.ProcessEnv = process.env) {
       env.NODE_ENV === "production" &&
       (!config.REALTIME_INTERNAL_SECRET ||
         !origins.length ||
-        publicUrl.protocol !== "wss:")
+        publicUrl.protocol !== "wss:" ||
+        (api.protocol !== "https:" &&
+          config.REALTIME_ALLOW_PRIVATE_HTTP !== "true"))
     )
       throw new Error()
   } catch {

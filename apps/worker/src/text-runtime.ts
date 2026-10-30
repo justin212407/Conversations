@@ -7,7 +7,11 @@ import {
   textGenerationJobSchema,
   type TextGenerationJob,
 } from "@conversations/shared"
-import { redisConnectionOptions } from "@conversations/service-runtime"
+import {
+  redisConnectionOptions,
+  type Diagnostics,
+  type DiagnosticSpan,
+} from "@conversations/service-runtime"
 import type { TextProvider } from "./provider.js"
 import { createTextRunner } from "./text-runner.js"
 
@@ -40,6 +44,7 @@ export async function relayTextHandoffs(
   options: {
     shouldStop?: () => boolean
     afterEnqueue?: () => Promise<void>
+    diagnostics?: Diagnostics
   } = {}
 ) {
   const claimed = await store.handoff.claim("job", {
@@ -54,11 +59,36 @@ export async function relayTextHandoffs(
       row.type !== "text.generate" ||
       parsed.data.operationId !== row.operationId ||
       parsed.data.conversationId !== row.conversationId
-    )
+    ) {
+      options.diagnostics?.count("job.publish", "ignored", "invalid_input")
       continue
-    await enqueue(queue, parsed.data)
-    await options.afterEnqueue?.()
-    if (row.leaseToken) await store.handoff.acknowledge(row.id, row.leaseToken)
+    }
+    const publish = async (span?: DiagnosticSpan) => {
+      await enqueue(
+        queue,
+        span
+          ? {
+              ...parsed.data,
+              correlation: span.correlation(parsed.data.correlation.requestId),
+            }
+          : parsed.data
+      )
+      await options.afterEnqueue?.()
+      if (row.leaseToken)
+        await store.handoff.acknowledge(row.id, row.leaseToken)
+    }
+    if (options.diagnostics)
+      await options.diagnostics.run(
+        "job.publish",
+        {
+          requestId: parsed.data.correlation.requestId,
+          operationId: parsed.data.operationId,
+          conversationId: parsed.data.conversationId,
+        },
+        publish,
+        parsed.data.correlation
+      )
+    else await publish()
   }
 }
 
@@ -69,6 +99,7 @@ export function createTextRuntime(options: {
   provider: TextProvider
   timeoutMs: number
   schemaReady?: () => Promise<unknown>
+  diagnostics?: Diagnostics
 }) {
   const connection = redisConnectionOptions(options.redisUrl)
   const queue = new Queue<TextGenerationJob>(TEXT_GENERATION_QUEUE, {
@@ -96,6 +127,7 @@ export function createTextRuntime(options: {
     store: options.store,
     provider: options.provider,
     timeoutMs: options.timeoutMs,
+    diagnostics: options.diagnostics,
     publish: (snapshot) =>
       publisher.publish(
         provisionalChannel(snapshot.conversationId),
@@ -144,9 +176,16 @@ export function createTextRuntime(options: {
       }
       await relayTextHandoffs(options.store, queue, {
         shouldStop: () => stopping,
+        diagnostics: options.diagnostics,
       })
     })()
-      .catch(() => {})
+      .catch(() => {
+        options.diagnostics?.count(
+          "runtime.recover",
+          "failed",
+          "dependency_unavailable"
+        )
+      })
       .finally(() => {
         ticking = undefined
       })

@@ -168,8 +168,8 @@ test("real API admission → durable relay → BullMQ worker → PG result/event
   ).rows.map((r) => domainEventSchema.parse(r.payload))
   assert.equal(terminal.length, 1)
   assert.equal(
-    terminal[0].correlation.traceparent,
-    "00-0123456789abcdef0123456789abcdef-0123456789abcdef-01"
+    terminal[0].correlation.traceparent.split("-")[1],
+    "0123456789abcdef0123456789abcdef"
   )
   await until(() => snapshots.length >= 1)
   assert.equal(snapshots[0].payload.messageId, accepted.assistantMessageId)

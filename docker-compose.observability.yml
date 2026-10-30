@@ -1,0 +1,49 @@
+# Optional local overlay. Ordinary services never depend on collector readiness.
+x-telemetry: &telemetry
+  METRICS_BEARER_TOKEN: ${METRICS_BEARER_TOKEN:?Set a separate metrics token before enabling observability}
+  OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://jaeger:4318/v1/traces
+  TRACE_SAMPLE_RATIO: ${TRACE_SAMPLE_RATIO:-0.1}
+  # Explicit local Docker bridge; production exceptions remain false by default.
+  OBSERVABILITY_ALLOW_PRIVATE_HTTP: "true"
+
+services:
+  api:
+    environment:
+      <<: *telemetry
+  worker:
+    environment:
+      <<: *telemetry
+  realtime:
+    environment:
+      <<: *telemetry
+      REALTIME_ALLOW_PRIVATE_HTTP: "true"
+  jaeger:
+    profiles: [observability]
+    image: cr.jaegertracing.io/jaegertracing/jaeger:2.22.0
+    command: ["--config", "/etc/jaeger/local.yml"]
+    environment:
+      GOMEMLIMIT: 128MiB
+    mem_limit: 192m
+    volumes:
+      - ./ops/observability/jaeger.yml:/etc/jaeger/local.yml:ro,Z
+    ports:
+      - "127.0.0.1:${CONVERSATIONS_TRACE_UI_PORT:-16687}:16686"
+      - "127.0.0.1:${CONVERSATIONS_OTLP_PORT:-14318}:4318"
+  prometheus:
+    profiles: [observability]
+    image: prom/prometheus:v3.13.5
+    user: "${OBSERVABILITY_UID:-1000}:${OBSERVABILITY_GID:-1000}"
+    mem_limit: 256m
+    command:
+      - --config.file=/etc/prometheus/local.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=6h
+      - --storage.tsdb.retention.size=128MB
+      - --query.max-concurrency=4
+      - --query.max-samples=100000
+    volumes:
+      - ./.local-observability/prometheus.yml:/etc/prometheus/local.yml:ro,Z
+    tmpfs:
+      - "/prometheus:size=192m,uid=${OBSERVABILITY_UID:-1000},gid=${OBSERVABILITY_GID:-1000}"
+    ports:
+      - "127.0.0.1:${CONVERSATIONS_METRICS_UI_PORT:-19090}:9090"

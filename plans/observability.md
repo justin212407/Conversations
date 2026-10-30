@@ -1,6 +1,13 @@
 ---
 status: in-progress
-depends: [service-foundation, persistence-auth, conversation-api, text-generation, realtime]
+depends:
+  [
+    service-foundation,
+    persistence-auth,
+    conversation-api,
+    text-generation,
+    realtime,
+  ]
 specs:
   - specs/architecture.md
   - specs/behaviors/service-foundation.md

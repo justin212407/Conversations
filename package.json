@@ -15,7 +15,8 @@
     "services:dev": "pnpm services:build && pnpm --parallel --filter @conversations/api --filter @conversations/worker --filter @conversations/realtime dev",
     "services:probe": "pnpm --filter @conversations/worker probe",
     "services:smoke": "node --env-file-if-exists=.env scripts/check-service-foundation.mjs",
-    "services:migrate": "pnpm --filter @conversations/database migrate"
+    "services:migrate": "pnpm --filter @conversations/database migrate",
+    "observability:prepare": "node --env-file-if-exists=.env scripts/prepare-observability.mjs"
   },
   "devDependencies": {
     "@workspace/eslint-config": "workspace:*",

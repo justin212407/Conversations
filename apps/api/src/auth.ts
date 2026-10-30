@@ -52,6 +52,7 @@ export function loadAuthConfig(
         const parsed = new URL(origin)
         return (
           !["https:", "http:"].includes(parsed.protocol) ||
+          (env.NODE_ENV === "production" && parsed.protocol !== "https:") ||
           parsed.origin !== origin ||
           !!parsed.username ||
           !!parsed.password

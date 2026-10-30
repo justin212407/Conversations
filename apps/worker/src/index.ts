@@ -9,6 +9,7 @@ import {
   type ProbeResult,
 } from "@conversations/shared"
 import {
+  Diagnostics,
   loadConfig,
   redisConnectionOptions,
   createResources,
@@ -19,12 +20,14 @@ import {
 
 async function main() {
   const config = loadConfig("worker")
+  const diagnostics = new Diagnostics(config)
   const textConfig = loadTextConfig()
   const provider = createTextProvider(textConfig)
   const resources = createResources(config)
   if (!resources.postgres) throw new Error("Worker persistence unavailable")
   const text = createTextRuntime({
     store: new ConversationStore(resources.postgres),
+    diagnostics,
     redisUrl: config.REDIS_URL,
     prefix: textConfig.TEXT_QUEUE_PREFIX,
     provider,
@@ -47,33 +50,41 @@ async function main() {
     }
   )
   worker.on("error", () => {}) // Report availability through readiness; never expose Redis credentials.
-  const app = createHealthServer(config, {
-    stopIntake: async () => {
-      await Promise.all([worker.pause(true), text.worker.pause(true)])
-      await text.stopIntake()
-    },
-    dependencies: [
-      ...resources.dependencies,
-      { name: "schema", check: () => checkDatabaseSchema(resources.postgres!) },
-      { name: "generation", check: () => text.check() },
-      {
-        name: "queue",
-        check: async () => {
-          if (!worker.isRunning() || worker.isPaused())
-            throw new Error("Worker unavailable")
-          await worker.waitUntilReady()
-          await worker.getBackend().getCounts(["active"])
-        },
+  const app = createHealthServer(
+    config,
+    {
+      stopIntake: async () => {
+        await Promise.all([worker.pause(true), text.worker.pause(true)])
+        await text.stopIntake()
       },
-    ],
-    async close() {
-      try {
-        await Promise.all([worker.close(true), text.close()])
-      } finally {
-        await resources.close()
-      }
+      dependencies: [
+        ...resources.dependencies,
+        {
+          name: "schema",
+          check: () => checkDatabaseSchema(resources.postgres!),
+        },
+        { name: "generation", check: () => text.check() },
+        {
+          name: "queue",
+          check: async () => {
+            if (!worker.isRunning() || worker.isPaused())
+              throw new Error("Worker unavailable")
+            await worker.waitUntilReady()
+            await worker.getBackend().getCounts(["active"])
+          },
+        },
+      ],
+      async close() {
+        try {
+          await Promise.all([worker.close(true), text.close()])
+        } finally {
+          await resources.close()
+        }
+      },
     },
-  })
+    undefined,
+    diagnostics
+  )
   worker.on("failed", (job) =>
     app.log.warn({ jobId: job?.id }, "Foundation probe failed")
   )

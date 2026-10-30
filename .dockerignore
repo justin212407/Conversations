@@ -11,3 +11,5 @@ docs/local-change-log.md
 .agents
 .codex
 .aws
+
+.local-observability/

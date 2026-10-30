@@ -439,6 +439,7 @@ test("realtime configuration fails closed in production and shares exact develop
       NODE_ENV: "production",
       REALTIME_INTERNAL_SECRET: secret,
       REALTIME_PUBLIC_URL: "wss://realtime.example/v1/connect",
+      REALTIME_API_URL: "https://api.example",
       CLERK_AUTHORIZED_PARTIES: "https://app.example",
     }).REALTIME_INTERNAL_SECRET,
     secret

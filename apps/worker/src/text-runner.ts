@@ -1,3 +1,8 @@
+import {
+  Diagnostics,
+  safeFailure,
+  type DiagnosticSpan,
+} from "@conversations/service-runtime"
 import { randomUUID } from "node:crypto"
 import {
   ConversationConflict,
@@ -35,15 +40,31 @@ export function createTextRunner(options: {
   store: ConversationStore
   provider: TextProvider
   timeoutMs: number
+  diagnostics?: Diagnostics
   publish: (snapshot: ProvisionalMessageSnapshot) => Promise<unknown>
 }) {
   const controllers = new Set<AbortController>()
   let stopping = false
-  async function execute(raw: unknown, jobId: string | undefined) {
+  async function execute(
+    raw: unknown,
+    jobId: string | undefined,
+    jobSpan?: DiagnosticSpan
+  ) {
     const parsed = textGenerationJobSchema.safeParse(raw)
-    if (!parsed.success || jobId !== parsed.data.operationId || stopping)
+    if (!parsed.success || jobId !== parsed.data.operationId || stopping) {
+      options.diagnostics?.count(
+        "job.execute",
+        "ignored",
+        stopping ? "interrupted" : "invalid_input"
+      )
       return { status: "ignored" }
-    const command: TextGenerationJob = parsed.data
+    }
+    const command: TextGenerationJob = {
+      ...parsed.data,
+      correlation:
+        jobSpan?.correlation(parsed.data.correlation.requestId) ??
+        parsed.data.correlation,
+    }
     let prepared
     try {
       prepared = await options.store.commands.prepareTextExecution(command)
@@ -92,6 +113,20 @@ export function createTextRunner(options: {
       failureCode?: ReturnType<typeof failureCode>
     } = { state: "completed" }
     let iterator: AsyncIterator<string> | undefined
+    const fields = {
+      requestId: command.correlation.requestId,
+      conversationId: command.conversationId,
+      operationId: command.operationId,
+      messageId: operation.assistantMessageId ?? undefined,
+    }
+    const providerSpan = options.diagnostics?.start(
+      "provider.generate",
+      fields,
+      command.correlation
+    )
+    const providerCorrelation =
+      providerSpan?.correlation(command.correlation.requestId) ??
+      command.correlation
     try {
       if (prepared.contextExceeded) throw new GenerationFailure("context_limit")
       if (controller.signal.aborted) throw controller.signal.reason
@@ -123,7 +158,7 @@ export function createTextRunner(options: {
             conversationId: operation.conversationId,
             sequence: prepared.checkpoint,
             occurredAt: new Date().toISOString(),
-            correlation: command.correlation,
+            correlation: providerCorrelation,
             payload: {
               messageId: operation.assistantMessageId,
               operationId: operation.id,
@@ -151,6 +186,10 @@ export function createTextRunner(options: {
         failureCode: code,
       }
     } finally {
+      providerSpan?.finish(
+        result.state === "completed" ? "success" : "failed",
+        result.failureCode ?? "none"
+      )
       clearTimeout(timer)
       controllers.delete(controller)
       controller.abort(new GenerationFailure("interrupted"))
@@ -160,13 +199,33 @@ export function createTextRunner(options: {
           .catch(() => {})
     }
     try {
-      const final = await options.store.commands.finalize(
-        command.accountId,
-        command.conversationId,
-        command.operationId,
-        { ...result, content, executionToken }
-      )
-      return { status: final.status, operationId: final.id }
+      const finalize = (span?: DiagnosticSpan) =>
+        options.store.commands.finalize(
+          command.accountId,
+          command.conversationId,
+          command.operationId,
+          {
+            ...result,
+            content,
+            executionToken,
+            correlation:
+              span?.correlation(command.correlation.requestId) ??
+              providerCorrelation,
+          }
+        )
+      const final = options.diagnostics
+        ? await options.diagnostics.run(
+            "operation.finalize",
+            fields,
+            finalize,
+            providerCorrelation
+          )
+        : await finalize()
+      return {
+        status: final.status,
+        operationId: final.id,
+        failureCode: result.failureCode,
+      }
     } catch (error) {
       if (
         error instanceof ConversationConflict ||
@@ -189,7 +248,32 @@ export function createTextRunner(options: {
       await Promise.allSettled([...pending])
     },
     execute(raw: unknown, jobId: string | undefined) {
-      const result = execute(raw, jobId)
+      const parsed = textGenerationJobSchema.safeParse(raw)
+      const result =
+        options.diagnostics &&
+        parsed.success &&
+        jobId === parsed.data.operationId
+          ? options.diagnostics.run(
+              "job.execute",
+              {
+                requestId: parsed.data.correlation.requestId,
+                operationId: parsed.data.operationId,
+                conversationId: parsed.data.conversationId,
+              },
+              async (span) => {
+                const result = await execute(raw, jobId, span)
+                if (
+                  result.status === "failed" ||
+                  result.status === "interrupted"
+                )
+                  span.finish("failed", safeFailure(result.failureCode))
+                else if (result.status === "ignored")
+                  span.finish("ignored", "ignored")
+                return result
+              },
+              parsed.data.correlation
+            )
+          : execute(raw, jobId)
       pending.add(result)
       void result.then(
         () => pending.delete(result),

@@ -1,4 +1,5 @@
 import {
+  Diagnostics,
   loadConfig,
   createResources,
   startService,
@@ -12,6 +13,7 @@ import { createRealtimeApi, createEventRelay } from "./realtime.js"
 
 async function main() {
   const config = loadConfig("api")
+  const diagnostics = new Diagnostics(config)
   const auth = loadAuthConfig()
   const realtimeConfig = loadRealtimeConfig()
   const resources = createResources(config)
@@ -28,7 +30,7 @@ async function main() {
     auth,
     config: realtimeConfig,
   })
-  const relay = createEventRelay(store, resources.redis)
+  const relay = createEventRelay(store, resources.redis, diagnostics)
   const app = createApi(
     config,
     {
@@ -44,7 +46,8 @@ async function main() {
     store,
     auth,
     undefined,
-    realtime
+    realtime,
+    diagnostics
   )
   relay.start()
   await startService(app, config)

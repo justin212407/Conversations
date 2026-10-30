@@ -1,3 +1,7 @@
+import {
+  requestCorrelationSchema,
+  type RequestCorrelation,
+} from "@conversations/shared"
 import { and, asc, eq, inArray, or, sql } from "drizzle-orm"
 import { drizzle, type NodePgDatabase } from "drizzle-orm/node-postgres"
 import type { Pool } from "pg"
@@ -62,20 +66,31 @@ export class ConversationStore {
 
   async createConversation(
     accountId: string,
-    title = "New conversation"
+    title = "New conversation",
+    correlation?: RequestCorrelation
   ): Promise<Conversation> {
     if (typeof title !== "string" || !title.trim() || title.includes("\u0000"))
       throw new InvalidInput()
     if ([...title].length > 120) throw new InputLimitExceeded()
+    const validatedCorrelation =
+      correlation === undefined
+        ? undefined
+        : requestCorrelationSchema.parse(correlation)
     return this.db.transaction(async (tx) => {
       const [conversation] = await tx
         .insert(schema.conversations)
         .values({ accountId, title })
         .returning()
       if (!conversation) throw new Error("Conversation creation failed")
-      await appendEvent(tx, conversation.id, "conversation.created", {
-        conversationId: conversation.id,
-      })
+      await appendEvent(
+        tx,
+        conversation.id,
+        "conversation.created",
+        {
+          conversationId: conversation.id,
+        },
+        validatedCorrelation
+      )
       return conversation
     })
   }
@@ -111,7 +126,8 @@ export class ConversationStore {
   async updateConversation(
     accountId: string,
     conversationId: string,
-    patch: { title?: string; status?: Conversation["status"] }
+    patch: { title?: string; status?: Conversation["status"] },
+    correlation?: RequestCorrelation
   ): Promise<Conversation> {
     if (patch.title !== undefined) {
       if (
@@ -127,6 +143,10 @@ export class ConversationStore {
       !["active", "archived", "deleted"].includes(patch.status)
     )
       throw new InvalidInput()
+    const validatedCorrelation =
+      correlation === undefined
+        ? undefined
+        : requestCorrelationSchema.parse(correlation)
     return this.withConversation(accountId, conversationId, async (tx) => {
       const busy = await tx
         .select({ id: schema.operations.id })
@@ -164,7 +184,8 @@ export class ConversationStore {
           conversationId: updated.id,
           title: updated.title,
           status: updated.status,
-        }
+        },
+        validatedCorrelation
       )
       return updated
     })

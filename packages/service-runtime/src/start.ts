@@ -9,16 +9,16 @@ export async function startService(
   const shutdown = async () => {
     if (stopping) return
     stopping = true
-    app.log.info("Service shutting down")
+    app.log.info({}, "runtime.shutdown.started")
     const deadline = setTimeout(() => {
-      app.log.error("Shutdown deadline exceeded")
+      app.log.error({}, "runtime.shutdown.deadline")
       process.exit(1)
     }, config.SHUTDOWN_TIMEOUT_MS)
     deadline.unref()
     try {
       await app.close()
     } catch {
-      app.log.error("Service shutdown failed")
+      app.log.error({}, "runtime.shutdown.failed")
       process.exitCode = 1
     } finally {
       clearTimeout(deadline)
@@ -33,6 +33,7 @@ export async function startService(
   process.on("SIGTERM", signal)
   try {
     await app.listen({ host: config.HOST, port: config.PORT })
+    app.log.info({}, "runtime.started")
   } catch (error) {
     await shutdown()
     throw error
