@@ -58,3 +58,9 @@ The active path uses a bounded session-local unresolved-command store (20 intent
 
 - Tracked as: root's pre-merge real-Clerk walkthrough and independent review of PR #32; the unchecked criteria above are retained until that evidence is recorded.
 - Deferred to [durable-conversation](durable-conversation.md) — voice #23 consumes the merged workspace; observability/security #24 evaluates patched telemetry dependencies and diagnostics, #25 completes cross-service/frontend regression coverage, and #26 verifies deployment/cutover under the existing Railway deferral. Vapi stays on the existing free account.
+
+### Integration after diagnostics merge
+
+PR #33 merged as b89756d before the workspace branch was rebased. Both private observability-config and browser-capture ignore exclusions were preserved. Exact frontend/shared-UI tree comparison found no behavior changes; frozen installation, web typecheck,12 unit tests and the real-service controller integration passed on the merged diagnostic boundaries. The combined checked paths comprise70 service tests and13 frontend tests. Both original workspace review findings were corrected and independently cleared before this rebase.
+
+The real Clerk development instance still leaves the dedicated test identity pending with choose-organization. Personal Accounts must be enabled in its dashboard before the personal sign-in/generation/reload walkthrough; the actual API correctly rejects the pending session. Keep personal/live acceptance unchecked, preserve owner/Convex data, and do not substitute a production auth bypass. Independent #24 foundation and #25 automation can progress without changing this requirement.
