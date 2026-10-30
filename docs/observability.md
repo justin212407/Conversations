@@ -29,6 +29,8 @@ Use the 202 response's `operationId` and `conversationId`, or a safe error respo
 
 In Jaeger select `conversations-api`/`conversations-worker`/`conversations-realtime` or search the trace ID from those logs. The producer/consumer parent edges continue across durable boundaries, even after HTTP has finished. Provider failure marks the provider/job spans with a safe failure code; finalization can succeed while persisting a failed response. Event delivery means the server's WebSocket send completed, not that a browser rendered/acknowledged it. Public frames retain their existing application shape and only request ID correlation; traceparent/tracestate remain internal.
 
+For scripted checks against the pinned Jaeger version, use `GET /api/v3/services` and `GET /api/v3/traces/<traceId>` on its query port. Trace responses wrap OTLP data in `result.resourceSpans`; enumerate their `scopeSpans[].spans` and resource service names. The [official query API](https://github.com/jaegertracing/jaeger-idl/blob/main/proto/api_v3/query_service.proto) describes this format.
+
 Sampling defaults to 0.1, applies equally to remote/local trace IDs and ignores the incoming sampled bit. Set `TRACE_SAMPLE_RATIO=1` explicitly for a short local investigation; an absent trace can mean sampling, bounded queue loss or collector outage. Incoming baggage/tracestate are discarded. No global HTTP/SDK auto-instrumentation can accidentally record provider URLs or headers. Export batches are capped at 256 queued spans/64 per export, concurrency 1 and a 750 ms exporter timeout; shutdown allows at most the lesser of 1 s or a quarter of the service shutdown budget. Export failure does not fail admission, repeat generation or become a readiness dependency.
 
 ## Read bounded metrics
