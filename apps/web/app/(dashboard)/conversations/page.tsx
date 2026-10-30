@@ -1,7 +1,4 @@
-const Page = () => {
-    return ( 
-        <div>Conversations</div>
-     );
+import { WorkspacePage } from "@/modules/workspace/page"
+export default function Page() {
+  return <WorkspacePage />
 }
- 
-export default Page;

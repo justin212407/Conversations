@@ -1,17 +1,21 @@
 import { Geist, Geist_Mono } from "next/font/google"
-import { ClerkProvider } from "@clerk/nextjs";
+import { ClerkProvider } from "@clerk/nextjs"
 
 import "@workspace/ui/globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
-import { cn } from "@workspace/ui/lib/utils";
-import { TooltipProvider } from "@workspace/ui/components/tooltip";
+import { cn } from "@workspace/ui/lib/utils"
+import { TooltipProvider } from "@workspace/ui/components/tooltip"
 
-const geist = Geist({subsets:['latin'],variable:'--font-sans'})
+const geist = Geist({ subsets: ["latin"], variable: "--font-sans" })
 
 const fontMono = Geist_Mono({
   subsets: ["latin"],
   variable: "--font-mono",
 })
+export const metadata = {
+  title: "Conversations",
+  description: "Your personal developer conversation workspace.",
+}
 
 export default function RootLayout({
   children,
@@ -22,14 +26,22 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={cn("antialiased", fontMono.variable, "font-sans", geist.variable)}
+      className={cn(
+        "antialiased",
+        fontMono.variable,
+        "font-sans",
+        geist.variable
+      )}
     >
       <body>
-        <ClerkProvider>
+        <ClerkProvider
+          signInUrl="/sign-in"
+          signUpUrl="/sign-up"
+          signInFallbackRedirectUrl="/conversations"
+          signUpFallbackRedirectUrl="/conversations"
+        >
           <ThemeProvider>
-              <TooltipProvider>
-                {children}
-              </TooltipProvider>
+            <TooltipProvider>{children}</TooltipProvider>
           </ThemeProvider>
         </ClerkProvider>
       </body>

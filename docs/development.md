@@ -71,9 +71,9 @@ An entirely unconfigured development instance serves health endpoints but cannot
 
 The server-only `ConversationStore` scopes reads/writes/subscription authorization to that internal account. Mutation checks and writes share a conversation row lock; message/event sequences are allocated in the same transaction as persistence and handoff. Implemented conversation and socket authorization routes consume this boundary. Realtime rechecks signed-session expiry and current access through bounded internal API calls; stateless upstream revocation is bounded by JWT lifetime. Do not trust a client-supplied account ID. A live Clerk secret/issuer JWKS association was checked separately; deterministic JWT tests do not prove a real end-user session was issued.
 
-## Existing frontend during transition
+## Personal frontend during transition
 
-The current Next.js dashboard/widget still contains legacy Convex/organization assumptions. Run `pnpm --filter web dev` with the existing app-local configuration to inspect it. An opt-in Compose profile is available with `docker compose --profile frontend up --build -d`; it requires valid Clerk settings in the root environment and does not yet supply the migrated conversation flow. It is excluded from the credential-free foundation checks.
+The [personal workspace](workspace.md) in apps/web uses Clerk plus the versioned API/shared realtime recovery interface. Its active path has no Convex URL or mandatory organization selection. The legacy widget/backend remain isolated. Host Next development reads app-local/process configuration; Compose's opt-in frontend profile receives the required Clerk/public API settings from the ignored root environment. Use `docker compose --profile frontend up --build -d`; the web origin must match the API/realtime allowlist. Frontend scripts and image packaging build shared contracts from clean source. Real user sign-in is verified separately from deterministic frontend/service fixtures.
 
 ## Stopping and data
 

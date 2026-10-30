@@ -39,3 +39,5 @@ npm-debug.log*
 *.pem
 
 .local-observability/
+# Local browser automation captures may contain signed-session data.
+**/.playwright-cli/

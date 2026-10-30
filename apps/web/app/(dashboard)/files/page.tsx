@@ -1,7 +1,5 @@
-const Page = () => {
-    return ( 
-        <div>Files</div>
-     );
+import { redirect } from "next/navigation"
+
+export default function Page() {
+  redirect("/conversations")
 }
- 
-export default Page;
