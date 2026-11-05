@@ -68,6 +68,12 @@ Actual whole-workspace audit remains **failing**: 87 high and 10 critical vulner
 
 The last validation box is intentionally unchecked: real Clerk workspace/browser and Vapi voice E2E require #22/#23 to merge and remain owned by #25. Hosted Actions execution is unavailable under the owner's explicit local-verification exception and is not reported as passed. Production HTTPS, actual deployed diagnostics and durable voice/text verification remain #26. This plan closes only the independent service regression foundation, not the complete Slice 1 issue.
 
+### Root review and acceptance
+
+Root corrected the inherited temporary-root and descendant-held-pipe defects in4fee9f5. Both independent review axes cleared the correction. Two new failing-before/passing-after regressions raise the checked automated paths to85 (70 services plus15 harness tests); strict harness lint and changed-file formatting pass. Root reran the complete actual container gate successfully with all lifecycle/diagnostic checks and cleanup:true, then repeated actual SIGINT injection: expected exit130/interrupted and cleanup:true. Temporary roots are canonicalized/rejected before writing inside build contexts or Git checkouts. Owned process trees and captured pipes have bounded termination. Windows behavior remains explicitly unverified locally.
+
+The whole-workspace audit still fails with87high/10critical counts and remains required/visible; no dependency resolution changed. Hosted checks remain unavailable under the owner's explicit waiver. These results complete this plan's independent automation scope; they do not close issue25 or claim real workspace/voice/deployment acceptance.
+
 ## Follow-ups
 
 - Issue [#25](https://github.com/justin212407/Conversations/issues/25) — remediate actual dependency findings, integrate real workspace/browser/voice acceptance as features merge, and reconcile hosted execution status when access returns.
