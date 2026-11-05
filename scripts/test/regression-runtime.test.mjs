@@ -1,7 +1,9 @@
 import assert from "node:assert/strict"
 import { test } from "node:test"
 import process from "node:process"
-import { readFile, stat } from "node:fs/promises"
+import { readFile, stat, mkdir, symlink } from "node:fs/promises"
+import { join } from "node:path"
+import { fileURLToPath, URL } from "node:url"
 import {
   childEnvironment,
   localDockerEndpoint,
@@ -56,6 +58,78 @@ test("private files are restrictive and cleanup only their own temporary directo
     await sentinel.remove()
   }
 })
+test("temporary roots inside build contexts or Git checkouts are rejected before fixture creation", async () => {
+  const sentinel = await privateRunDirectory()
+  const repository = fileURLToPath(new URL("../../", import.meta.url))
+  const alias = join(sentinel.directory, "repository-alias")
+  const foreign = join(sentinel.directory, "foreign-checkout")
+  await symlink(
+    repository,
+    alias,
+    process.platform === "win32" ? "junction" : "dir"
+  )
+  await mkdir(join(foreign, ".git"), { recursive: true })
+  const probe = `const {privateRunDirectory}=await import(process.argv[1]);let owned;try{owned=await privateRunDirectory();console.log("allowed")}catch(error){console.log(error.code)}finally{await owned?.remove()}`
+  try {
+    for (const temporary of [
+      repository,
+      join(repository, "apps/api"),
+      alias,
+      foreign,
+    ]) {
+      const result = await run(
+        process.execPath,
+        [
+          "--input-type=module",
+          "-e",
+          probe,
+          new URL("../regression/runtime.mjs", import.meta.url).href,
+        ],
+        {
+          env: {
+            ...childEnvironment(),
+            TMPDIR: temporary,
+            TMP: temporary,
+            TEMP: temporary,
+          },
+          stage: "temporary-root-probe",
+        }
+      )
+      assert.equal(result.output.trim(), "precondition")
+    }
+  } finally {
+    await sentinel.remove()
+  }
+})
+test(
+  "command deadlines settle despite a descendant retaining inherited pipes",
+  { skip: process.platform === "win32" },
+  async () => {
+    const owned = await privateRunDirectory()
+    const marker = join(owned.directory, "descendant.pid")
+    const probe = `const {spawn}=require("node:child_process");const fs=require("node:fs");const child=spawn(process.execPath,["-e", "process.on('SIGTERM',()=>{});setTimeout(()=>{},5000)"],{stdio:"inherit"});fs.writeFileSync(process.argv[1],String(child.pid));setInterval(()=>{},1000)`
+    const started = Date.now()
+    try {
+      await assert.rejects(
+        run(process.execPath, ["-e", probe, marker], {
+          stage: "descendant-deadline",
+          timeoutMs: 500,
+        }),
+        (error) => error.code === "command_timeout"
+      )
+      assert.ok(
+        Number(await readFile(marker, "utf8")) > 0,
+        "descendant was started"
+      )
+      assert.ok(
+        Date.now() - started < 2500,
+        "descendant pipes cannot extend command deadline"
+      )
+    } finally {
+      await owned.remove()
+    }
+  }
+)
 test("failed commands and bounded output do not serialize raw errors or private output", async () => {
   const canary = "PRIVATE_CHILD_CANARY"
   await assert.rejects(

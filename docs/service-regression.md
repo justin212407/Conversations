@@ -31,6 +31,8 @@ The verifier checks streaming, durable success, replay without duplicate provide
 
 Every invocation generates unique project/volume/network/queue names, reserved loopback ports and signing/internal/metrics/database credentials. The private temporary directory is 0700; keys/configs are 0600. Only the public test fixture copy is 0644 so image UID 1000 can read it on CI hosts with another UID. All private fixtures remain outside Git and build context. Existing root/app environment files and `.local-observability/prometheus.yml` are never loaded or overwritten.
 
+Inherited temporary roots are resolved before writing any fixtures. A root inside the build context or a Git checkout, including a symlink alias, is rejected. Command deadlines terminate owned process groups on POSIX (or use the owned process tree on Windows) and bound captured-pipe settlement so a descendant cannot prevent cleanup. Local verification covers Linux; Windows process-tree behavior has not been exercised locally.
+
 The command prints one allowlisted JSON result with stage, fixed failure code, safe counts, run-owned project name and cleanup status. Raw Compose output, keys, transcripts, exceptions, traces and rendered configuration are not printed or uploaded. Startup/build/assertion failures, deadlines and SIGINT/SIGTERM enter the same bounded cleanup path. Cleanup uses only the verified endpoint and exact project labels/tag; it never prunes host resources. A failed cleanup remains nonzero and its project identifier is retained for investigation.
 
 For reproducible cleanup checks after startup:

@@ -1,8 +1,15 @@
 import { spawn } from "node:child_process"
-import { mkdtemp, writeFile, chmod, rm } from "node:fs/promises"
+import {
+  mkdtemp,
+  writeFile,
+  chmod,
+  rm,
+  realpath,
+  lstat,
+} from "node:fs/promises"
 import { tmpdir } from "node:os"
-import { join } from "node:path"
-import { URL } from "node:url"
+import { join, dirname, relative, isAbsolute, sep } from "node:path"
+import { URL, fileURLToPath } from "node:url"
 import { randomUUID } from "node:crypto"
 import { setTimeout as delay } from "node:timers/promises"
 
@@ -86,17 +93,70 @@ export function run(
       bytes = 0,
       failed,
       timer,
-      killTimer
+      killTimer,
+      settled = false,
+      treeKillStarted = false
     const child = spawn(command, args, {
       cwd,
       env,
       stdio: ["ignore", "pipe", "pipe"],
+      detached: process.platform !== "win32",
     })
+    const killOwned = (termination) => {
+      if (!child.pid) return
+      if (process.platform === "win32") {
+        if (treeKillStarted) return
+        treeKillStarted = true
+        const killer = spawn(
+          "taskkill",
+          ["/PID", String(child.pid), "/T", "/F"],
+          {
+            env,
+            stdio: "ignore",
+            windowsHide: true,
+          }
+        )
+        const deadline = setTimeout(() => {
+          killer.kill()
+          child.kill(termination)
+        }, 1000)
+        killer.once("error", () => {
+          clearTimeout(deadline)
+          child.kill(termination)
+        })
+        killer.once("close", (code) => {
+          clearTimeout(deadline)
+          if (code !== 0) child.kill(termination)
+        })
+        killer.unref()
+        return
+      }
+      try {
+        process.kill(-child.pid, termination)
+      } catch {
+        child.kill(termination)
+      }
+    }
+    const finish = (error, result) => {
+      if (settled) return
+      settled = true
+      clearTimeout(timer)
+      clearTimeout(killTimer)
+      signal?.removeEventListener("abort", abort)
+      if (error) {
+        killOwned("SIGKILL")
+        child.stdout.destroy()
+        child.stderr.destroy()
+        child.unref()
+        reject(error)
+      } else resolve(result)
+    }
     const stop = (code) => {
-      if (failed) return
+      if (failed || settled) return
       failed = code
-      child.kill("SIGTERM")
-      killTimer = setTimeout(() => child.kill("SIGKILL"), 1000)
+      killOwned("SIGTERM")
+      // Never wait indefinitely for a descendant holding an inherited pipe.
+      killTimer = setTimeout(() => finish(new GateFailure(stage, failed)), 1000)
     }
     const abort = () => stop("interrupted")
     const capture = (chunk, error) => {
@@ -110,20 +170,13 @@ export function run(
     }
     child.stdout.on("data", (chunk) => capture(chunk, false))
     child.stderr.on("data", (chunk) => capture(chunk, true))
-    const finish = () => {
-      clearTimeout(timer)
-      clearTimeout(killTimer)
-      signal?.removeEventListener("abort", abort)
-    }
     child.once("error", () => {
-      finish()
-      reject(new GateFailure(stage, "command_failed"))
+      finish(new GateFailure(stage, "command_failed"))
     })
     child.once("close", (code) => {
-      finish()
       if (failed || !acceptExitCodes.includes(code))
-        reject(new GateFailure(stage, failed ?? "command_failed"))
-      else resolve({ output, errors, code })
+        finish(new GateFailure(stage, failed ?? "command_failed"))
+      else finish(undefined, { output, errors, code })
     })
     timer = setTimeout(() => stop("command_timeout"), timeoutMs)
     signal?.addEventListener("abort", abort, { once: true })
@@ -149,7 +202,30 @@ export async function until(
   throw new GateFailure(stage, "command_timeout")
 }
 export async function privateRunDirectory() {
-  const directory = await mkdtemp(join(tmpdir(), "conversations-regression-"))
+  const parent = await realpath(tmpdir())
+  const repository = await realpath(
+    fileURLToPath(new URL("../../", import.meta.url))
+  )
+  const fromRepository = relative(repository, parent)
+  if (
+    !fromRepository ||
+    (!isAbsolute(fromRepository) &&
+      fromRepository !== ".." &&
+      !fromRepository.startsWith(".." + sep))
+  )
+    throw new GateFailure("private-files", "precondition")
+  for (let cursor = parent; ; cursor = dirname(cursor)) {
+    try {
+      await lstat(join(cursor, ".git"))
+      throw new GateFailure("private-files", "precondition")
+    } catch (error) {
+      if (error instanceof GateFailure) throw error
+      if (error.code !== "ENOENT")
+        throw new GateFailure("private-files", "precondition")
+    }
+    if (dirname(cursor) === cursor) break
+  }
+  const directory = await mkdtemp(join(parent, "conversations-regression-"))
   await chmod(directory, 0o700)
   return {
     directory,
