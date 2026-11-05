@@ -50,6 +50,16 @@ Vapi callback identity/order/committed-history semantics, server-created web-cal
 
 PR32 merged as 2b98a2636cba3645344f10b32d08cd7b091c30f2 before this worktree was created. Real personal Clerk and Google text/streaming/context/reload/reopen acceptance passed; main includes the reviewed service/observability/regression foundation. The user explicitly authorizes issue/feature PR progression and necessary browser credential setup, performs login/MFA when required, waives unavailable hosted CI, preserves existing Convex data and requires the existing free Vapi account.
 
+### Initial real-provider availability probe
+
+Root accepted the bounded design at `7f71299` and reviewed/corrected a private probe before execution. A callback-only temporary HTTPS listener was separate from the loopback SDK/config listener; wrong methods/routes and missing authentication were rejected before any provider write. Fresh quick-tunnel readiness required a longer window; the first failed preflight had zero provider attempts/mutations and verified cleanup before the authorized zero-provider repair.
+
+The actual provider phase created one dedicated bearer credential and one dedicated saved assistant (both201), preserving earlier resources. The saved assistant held only base instructions and fixed callback/credential configuration; the single private Daily-call request supplied full synthetic seed and private boundary through model-only per-call assistant overrides, with no server override. **Vapi rejected that one call creation with HTTP400 because account credits were unavailable.** No call ID, SDK media join or transcript callback resulted, and no additional create attempt, paid upgrade, purchase, auto-reload or billing edit occurred.
+
+The initial call-attempt claim and dedicated resource IDs remain private; the assistant's ephemeral callback was retired to a reserved `.invalid` destination before tunnel shutdown. The rejected call required no remote termination; both owned processes and all three local listeners were subsequently verified stopped. The new dedicated resources can be deliberately reconfigured later; no existing assistant or organization setting changed.
+
+This is actual provider unavailability evidence, not a balance-UI inference or a successful voice contract proof. Private server-created join compatibility, any separate browser token requirement, authenticated callback attachment under model overrides, raw/formatted seed-boundary representation, role/ordinal mapping, cumulative prefix behavior and spoken-tail/interruption/final-report semantics all remain **unproven**. The capability validation box stays unchecked. Broad product implementation remains gated on root's decision and exact mapping review; deterministic fixtures must not claim the missing real-provider facts. No public product behavior was implemented in this phase.
+
 ## Follow-ups
 
 #24 completes cross-service/frontend/voice diagnostics and security; #25 owns whole-workspace advisory remediation and final browser/voice regression integration; #26 retains deployment/cutover and production evidence.
