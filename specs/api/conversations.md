@@ -14,29 +14,41 @@ Conversation cursors preserve full PostgreSQL timestamp precision and bind accou
 
 ## Routes
 
-| Method/path                                              | Request                                            | Response                                                     |
-| -------------------------------------------------------- | -------------------------------------------------- | ------------------------------------------------------------ |
-| GET /v1/me                                               | Clerk identity                                     | Internal account projection                                  |
-| POST /v1/conversations                                   | Optional title, at most 120 characters             | 201 conversation                                             |
-| GET /v1/conversations                                    | Cursor/limit, optional active/archived filter      | Conversations ordered by updated time then ID descending     |
-| GET /v1/conversations/:id                                | Owned ID                                           | Conversation                                                 |
-| PATCH /v1/conversations/:id                              | Title and/or active/archived status                | Updated conversation                                         |
-| DELETE /v1/conversations/:id                             | Owned ID; no active operation                      | 204; soft-deleted                                            |
-| GET /v1/conversations/:id/messages                       | Cursor/limit                                       | Ordered message page                                         |
-| POST /v1/conversations/:id/messages                      | clientRequestId UUID, content (1–16000 characters) | 202 accepted operation and stable user/assistant message IDs |
-| POST /v1/conversations/:id/operations/:operationId/retry | New clientRequestId UUID                           | 202 controlled retry                                         |
-| POST /v1/conversations/:id/voice-sessions                | clientRequestId UUID                               | Authorized session and browser-safe provider configuration   |
-| POST /v1/conversations/:id/voice-sessions/:sessionId/end | Owned session                                      | Accepted end/reconciliation state                            |
-| POST /v1/realtime-tickets                                | Owned conversationId                               | One-use ticket, WebSocket URL, expiration                    |
-| POST /v1/providers/vapi/events                           | Authenticated provider event                       | Acknowledgement after durable ingestion                      |
-| GET /health/live                                         | None                                               | Process is serving                                           |
-| GET /health/ready                                        | None                                               | 200 ready or 503 dependency/shutdown failure                 |
+| Method/path                                                    | Request                                            | Response                                                     |
+| -------------------------------------------------------------- | -------------------------------------------------- | ------------------------------------------------------------ |
+| GET /v1/me                                                     | Clerk identity                                     | Internal account projection                                  |
+| POST /v1/conversations                                         | Optional title, at most 120 characters             | 201 conversation                                             |
+| GET /v1/conversations                                          | Cursor/limit, optional active/archived filter      | Conversations ordered by updated time then ID descending     |
+| GET /v1/conversations/:id                                      | Owned ID                                           | Conversation                                                 |
+| PATCH /v1/conversations/:id                                    | Title and/or active/archived status                | Updated conversation                                         |
+| DELETE /v1/conversations/:id                                   | Owned ID; no active operation                      | 204; soft-deleted                                            |
+| GET /v1/conversations/:id/messages                             | Cursor/limit                                       | Ordered message page                                         |
+| POST /v1/conversations/:id/messages                            | clientRequestId UUID, content (1–16000 characters) | 202 accepted operation and stable user/assistant message IDs |
+| POST /v1/conversations/:id/operations/:operationId/retry       | New clientRequestId UUID                           | 202 controlled retry                                         |
+| POST /v1/conversations/:id/voice-sessions                      | clientRequestId UUID                               | Authorized session and browser-safe provider configuration   |
+| GET /v1/conversations/:id/voice-sessions/:sessionId            | Owned session                                      | Application session projection without join/control secrets  |
+| POST /v1/conversations/:id/voice-sessions/:sessionId/reconcile | Owned session; empty object                        | Reconciled session projection; no new call creation          |
+| POST /v1/conversations/:id/voice-sessions/:sessionId/end       | Owned session                                      | Accepted end/reconciliation state                            |
+| POST /v1/realtime-tickets                                      | Owned conversationId                               | One-use ticket, WebSocket URL, expiration                    |
+| POST /v1/providers/vapi/events                                 | Authenticated provider event                       | Acknowledgement after durable ingestion                      |
+| GET /health/live                                               | None                                               | Process is serving                                           |
+| GET /health/ready                                              | None                                               | 200 ready or 503 dependency/shutdown failure                 |
 
 The contract records the desired slice. Unimplemented routes must not return fake success responses or appear in a runtime OpenAPI document as working.
 
 Conversation responses contain `id`, `title`, `status`, `createdAt`, and `updatedAt`. The owned detail route additionally returns `activeOperation` (the current admission projection or null), enabling explicit recovery after reload. Deleted records are omitted from normal responses. Admission returns `operationId`, `conversationId`, `userMessageId`, `assistantMessageId`, `status`, `expiresAt`, and nullable `failureCode`; a 202 promises durable pending command/message/handoff storage, not a generated answer. Exact replay returns the same identities and current operation status.
 
 Client request IDs are unique within an authenticated account across conversations and command shapes. Reusing one for changed content, another conversation, or another command conflicts. Controlled retries use a new request ID, preserve the original user turn, and allocate a new assistant/operation identity. An expired pending/running text operation can be explicitly interrupted through the retry route before replacement; a non-expired active operation conflicts. Initial text admission leases last five minutes. Common finalized result content is bounded to 64000 Unicode characters; input/context limits remain explicit errors.
+
+## Voice session contracts
+
+The concrete rules are in [durable voice behavior](../behaviors/voice.md). Start accepts exactly `{ clientRequestId }` and returns 202 after durable admission with `{ session, connection }`. `session` contains application `id` (equal to its operation UUID), `conversationId`, `state`, `failureCode`, `expiresAt`, `createdAt` and `updatedAt`; `state` is `starting | active | ending | ended | failed | interrupted`. `connection` is nullable, otherwise `{ url, expiresAt }`: an owned short-lived HTTPS join capability, never seeded context, provider control URL or server credential. Responses containing it use `Cache-Control: no-store`. Exact replay returns the same session/current state and cannot create a second provider call.
+
+GET session is readonly and omits connection capabilities. End and reconcile accept exactly an empty object and return202 with the session projection. End is idempotent and requests termination/reconciliation of the registered call. Reconcile may retrieve the known provider call and apply authenticated authoritative state; it never creates one. Ownership/not-found/idempotency/input/dependency errors retain the common envelope. Misconfigured voice fails explicitly while ordinary text/readiness remain usable.
+
+Current admission projections include `kind: text | voice`; the shared reader permits the field to be absent on older version 1 payloads and treats absence as text for compatibility. Voice admission has nullable text message IDs. Atomic snapshots additionally expose nullable `voiceSession` (latest owned application session projection); readers accept its absence on older payloads. `voice.session.updated` is a version 1 durable application event containing that projection and follows the existing sequence/checkpoint recovery rules. Neither the public projection nor event contains Vapi objects or join/control capabilities.
+
+The provider event route uses separate server bearer authentication before bounded JSON handling, verifies the configured assistant/registered call and acknowledges only after durable ingestion. Its route-specific 4 MiB limit does not enlarge other request limits. Supported transcript/lifecycle shapes are normalized only inside the provider adapter. Unknown/mismatched calls, bad credentials and conflicting protocol data cannot write history; informational unsupported types may be acknowledged without mutation. Browser transcript submissions are never accepted.
 
 ## WebSocket boundary
 
