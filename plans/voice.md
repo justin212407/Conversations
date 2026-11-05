@@ -11,14 +11,13 @@ specs:
   - specs/screens/workspace.md
   - specs/behaviors/voice.md
 issues: [23]
-pr: 35
 ---
 
 # Plan: Durable contextual voice conversations
 
 ## Scope
 
-**Blocked proposal:** The existing-account call was rejected for unavailable credits. No paid funding is authorized. Resume only when usable existing-account credits and real capability evidence are available; root must accept the exact provider mapping before product implementation. All feature acceptance remains unchecked.
+**Blocked proposal:** [Draft PR #35](https://github.com/justin212407/Conversations/pull/35) retains this design for review. The existing-account call was rejected for unavailable credits. No paid funding is authorized. Resume only when usable existing-account credits and real capability evidence are available; root must accept the exact provider mapping before product implementation. All feature acceptance remains unchecked.
 
 Complete #23 on the merged personal workspace using the existing free Vapi account. Introduce application-owned frontend/server adapters, authenticated durable provider ingestion, stable turn identities and completed-context resume. Preserve the text lifecycle, normal Clerk ownership and old Convex/widget data. Railway deployment remains #26; representative live voice verification may use an isolated local stack and a temporary restricted HTTPS callback endpoint.
 
