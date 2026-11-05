@@ -32,13 +32,13 @@ The architecture's apps/web destination and personal account boundary, durable l
 
 ## Validation
 
-- [ ] Personal Clerk sign-in reaches the workspace without organization selection or Convex guards; server requests use the verified account boundary.
+- [x] Personal Clerk sign-in reaches the workspace without organization selection or Convex guards; server requests use the verified account boundary.
 - [x] Create/list/paginate/open conversations and ordered persisted/older history work through the versioned API.
 - [x] Text submission streams once, exposes pending/failure and controlled retry, and handles uncertain delivery and concurrency without duplicating user turns.
 - [x] Reload/reopen/continue and realtime reconnect preserve authoritative completed messages/context with visible recovery states.
 - [x] Keyboard, responsive rendering and loading/empty/error/unavailable states are usable; text-only flow requests no microphone permission.
 - [x] Active routes/navigation use developer-workspace language and reuse the established shell/shared chat primitives; the new path has no Convex dependency.
-- [ ] Meaningful frontend checks, scoped build/typecheck/lint, relevant prior regressions and local browser/container checks pass under the owner's hosted-CI exception; live evidence is distinguished from fixtures.
+- [x] Meaningful frontend checks, scoped build/typecheck/lint, relevant prior regressions and local browser/container checks pass under the owner's hosted-CI exception; live evidence is distinguished from fixtures.
 
 ## Risks / unknowns
 
@@ -46,21 +46,14 @@ Clerk frontend instance settings and existing local redirect configuration can a
 
 ## Notes
 
-PR #31 merged as a03a4d92d830fb8e5ea7c561330fdcfe15ba2981 before this worktree was created. Its reviewed connection interface handles one-use tickets, scoped delivery, terminal/retry metadata and checkpoint recovery. Root verified actual Docker Gemini completion and realtime-container restart. User authorized ongoing feature PRs/merges with reviewed local gates; Railway #26 stays deferred and Vapi stays on the existing free account.
+PR31 realtime, PR33 diagnostics and PR34 service regression are merged prerequisites. The workspace source was independently reviewed, including corrected unresolved-request identity retention through session expiry and unavailable-history cleanup/fencing. Both review axes cleared those corrections. Rebase onto main de9ba5d produced61428ae with an exact unchanged frontend/shared-UI/shared-contract/product-service/Dockerfile tree compared with reviewed b95a84e. Frozen installation passed again.
 
-Implementation source is frozen at 3c3717b in [PR #32](https://github.com/justin212407/Conversations/pull/32), preceded by the screen-spec commit 9f5ef28. Ten frontend unit tests, one real-service frontend integration and 61 prior service tests passed (72 total). Final frontend typecheck/lint, frozen installation and a clean production build passed. The owned Brave fixture verified keyboard send, older history, failure/retry, lost-ack replay, rename/archive/unarchive, reconnect and responsive rendering without microphone requests. Fixtures use signed Clerk SDK verification and isolated services; no fixture auth is selected in production.
+Automated evidence comprises98 checked paths:70 service tests,15 regression-harness tests,12 frontend units and1 real-service controller integration. Frontend typecheck/lint, a clean production build and the isolated Brave keyboard/responsive/lifecycle/retry/reconnect fixture were verified on the same frontend implementation. The merged container gate additionally verifies the actual separated service lifecycle with deterministic signed identities/provider substitution. Hosted execution remains unavailable under the owner's explicit waiver; no hosted pass is claimed.
 
-The first validation criterion remains unchecked pending root's actual end-user Clerk walkthrough. A warmed real-key sign-in form is confirmed, but no completed live sign-in/generation/reload claim is made at closeout. The final validation criterion remains unchecked until root finishes independent review and the live browser/container gate before merge. The implementation branch does not merge itself, and no dependent voice work begins before that merge.
+Root completed real Clerk development and Google-provider acceptance on2026-11-06. Through the owner-authorized normal Brave dashboard, Conversations Development now has Membership optional saved and verified after reload. The dedicated test identity has an active personal Clerk session with no organization/task and actual API authorization200. The actual UI created a conversation, generated four real Google answers, observed message.snapshot streaming, survived fresh-document reloads, recalled the prior codeword on continuation and reopened from the sidebar. All8 persisted message IDs remain unique/stable. The monitored text turn made0 microphone calls while microphone permission remained unrequested.
 
-The active path uses a bounded session-local unresolved-command store (20 intents/512 KiB), preserves matching request IDs through uncertain delivery and consumes the merged connection/reducer boundary. The plain Next configuration removes the obsolete Sentry tunnel wrapper; runtime telemetry is opt-in and scrubbed. Cold concurrent Next writers exposed torn generated route caches, so verification used one writer and a clean owned cache. The scoped lock importer change preserves prior resolutions. See [workspace documentation](../docs/workspace.md) for module responsibilities and local commands.
+Private proof and the central ignored change journal remain outside Git. No owner impersonation, production auth bypass, Convex import/deletion, Vapi upgrade or Railway deployment occurred. The frontend uses the accepted bounded unresolved-intent store and shared connection/reducer; the normal Clerk/API ownership boundary is exercised end to end. All validation criteria for this workspace scope are now verified before root merges PR32.
 
 ## Follow-ups
 
-- Tracked as: root's pre-merge real-Clerk walkthrough and independent review of PR #32; the unchecked criteria above are retained until that evidence is recorded.
-- Deferred to [durable-conversation](durable-conversation.md) — voice #23 consumes the merged workspace; observability/security #24 evaluates patched telemetry dependencies and diagnostics, #25 completes cross-service/frontend regression coverage, and #26 verifies deployment/cutover under the existing Railway deferral. Vapi stays on the existing free account.
-
-### Integration after diagnostics merge
-
-PR #33 merged as b89756d before the workspace branch was rebased. Both private observability-config and browser-capture ignore exclusions were preserved. Exact frontend/shared-UI tree comparison found no behavior changes; frozen installation, web typecheck,12 unit tests and the real-service controller integration passed on the merged diagnostic boundaries. The combined checked paths comprise70 service tests and13 frontend tests. Both original workspace review findings were corrected and independently cleared before this rebase.
-
-The real Clerk development instance still leaves the dedicated test identity pending with choose-organization. Personal Accounts must be enabled in its dashboard before the personal sign-in/generation/reload walkthrough; the actual API correctly rejects the pending session. Keep personal/live acceptance unchecked, preserve owner/Convex data, and do not substitute a production auth bypass. Independent #24 foundation and #25 automation can progress without changing this requirement.
+- Deferred to [durable-conversation](durable-conversation.md): voice#23 consumes this merged workspace; #24 completes frontend/voice diagnostics; #25 integrates the remaining browser/voice regression and dependency remediation; #26 owns deployment/cutover under the existing Railway deferral. Vapi stays on the existing free account.
