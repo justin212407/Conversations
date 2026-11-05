@@ -4,25 +4,27 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "dev": "next dev --port 3000",
-    "build": "next build",
+    "dev": "pnpm --filter @conversations/shared build && next dev --port 3000",
+    "build": "pnpm --filter @conversations/shared build && next build",
     "start": "next start",
     "lint": "eslint",
     "format": "prettier --write \"**/*.{ts,tsx}\"",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "pnpm --filter @conversations/shared build && tsc --noEmit",
+    "test": "pnpm --filter @conversations/shared build && tsx --test test/*.test.ts",
+    "test:integration": "pnpm -w services:build && tsx --test test/*.test.mjs",
+    "test:browser:serve": "pnpm --filter @conversations/shared build && tsx test/browser-server.mjs"
   },
   "dependencies": {
     "@clerk/nextjs": "^7.4.1",
     "@sentry/nextjs": "^10.54.0",
-    "@workspace/backend": "workspace:*",
-    "@workspace/math": "workspace:*",
     "@workspace/ui": "workspace:*",
-    "convex": "^1.39.1",
     "lucide-react": "^1.16.0",
     "next": "16.1.6",
     "next-themes": "^0.4.6",
     "react": "^19.2.4",
-    "react-dom": "^19.2.4"
+    "react-dom": "^19.2.4",
+    "@conversations/shared": "workspace:*",
+    "zod": "3.25.76"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.18",
@@ -32,6 +34,9 @@
     "@workspace/eslint-config": "workspace:^",
     "@workspace/typescript-config": "workspace:*",
     "eslint": "^9.39.2",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "tsx": "4.23.15",
+    "esbuild": "0.28.2",
+    "postcss": "8.5.6"
   }
 }

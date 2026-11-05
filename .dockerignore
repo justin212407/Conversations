@@ -11,7 +11,7 @@ docs/local-change-log.md
 .agents
 .codex
 .aws
-
+**/.playwright-cli
 .local-observability/
 
 # Privately mounted only by the deterministic regression gate.
