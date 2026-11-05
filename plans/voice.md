@@ -11,6 +11,7 @@ specs:
   - specs/screens/workspace.md
   - specs/behaviors/voice.md
 issues: [23]
+pr: 35
 ---
 
 # Plan: Durable contextual voice conversations
