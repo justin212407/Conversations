@@ -1,6 +1,9 @@
 ---
-status: in-progress
+status: blocked
 depends: [workspace, observability, service-regression]
+awaits:
+  - "Vapi existing free account: usable existing credits without purchase, paid funding or billing changes; the controlled call returned HTTP400 credits_unavailable."
+  - "Real Vapi capability proof: per-call seed/live boundary, authenticated callbacks, SDK join/token shape and spoken-history ordering/cutoff before root accepts an exact adapter mapping."
 specs:
   - specs/architecture.md
   - specs/behaviors/conversation-lifecycle.md
@@ -13,6 +16,8 @@ issues: [23]
 # Plan: Durable contextual voice conversations
 
 ## Scope
+
+**Blocked proposal:** The existing-account call was rejected for unavailable credits. No paid funding is authorized. Resume only when usable existing-account credits and real capability evidence are available; root must accept the exact provider mapping before product implementation. All feature acceptance remains unchecked.
 
 Complete #23 on the merged personal workspace using the existing free Vapi account. Introduce application-owned frontend/server adapters, authenticated durable provider ingestion, stable turn identities and completed-context resume. Preserve the text lifecycle, normal Clerk ownership and old Convex/widget data. Railway deployment remains #26; representative live voice verification may use an isolated local stack and a temporary restricted HTTPS callback endpoint.
 
