@@ -13,3 +13,6 @@ docs/local-change-log.md
 .aws
 
 .local-observability/
+
+# Privately mounted only by the deterministic regression gate.
+apps/worker/test/fixtures/container-worker.mjs
