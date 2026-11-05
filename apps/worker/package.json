@@ -10,7 +10,7 @@
     "dev": "node --env-file-if-exists=../../.env --import tsx --watch src/index.ts",
     "start": "node dist/index.js",
     "probe": "node --env-file-if-exists=../../.env --import tsx src/probe.ts",
-    "test": "node --test test/*.test.mjs"
+    "test": "node --test --test-concurrency=1 test/*.test.mjs"
   },
   "dependencies": {
     "@conversations/shared": "workspace:*",
