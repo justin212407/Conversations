@@ -70,34 +70,40 @@ test("retained optional Hono middleware does not reflect arbitrary credentialed 
   assert.equal(await response.text(), "fixture")
 })
 
-test("retained optional MCP capability negotiates and lists tools entirely in memory", async () => {
-  const load = (path) => import(pathToFileURL(worker.resolve(path)).href)
-  const [
-    { Client },
-    { Server },
-    { InMemoryTransport },
-    { ListToolsRequestSchema },
-  ] = await Promise.all([
-    load("@modelcontextprotocol/sdk/client/index.js"),
-    load("@modelcontextprotocol/sdk/server/index.js"),
-    load("@modelcontextprotocol/sdk/inMemory.js"),
-    load("@modelcontextprotocol/sdk/types.js"),
-  ])
-  const client = new Client({ name: "fixture-client", version: "1" })
-  const server = new Server(
-    { name: "fixture-server", version: "1" },
-    { capabilities: { tools: {} } }
-  )
-  server.setRequestHandler(ListToolsRequestSchema, () => ({ tools: [] }))
-  const [left, right] = InMemoryTransport.createLinkedPair()
-  try {
-    await server.connect(right)
-    await client.connect(left)
-    assert.deepEqual(await client.listTools(), { tools: [] })
-  } finally {
-    await Promise.all([client.close(), server.close()])
+test(
+  "retained optional MCP capability negotiates and lists tools entirely in memory",
+  { timeout: 15000 },
+  async () => {
+    const load = (path) => import(pathToFileURL(worker.resolve(path)).href)
+    const [
+      { Client },
+      { Server },
+      { InMemoryTransport },
+      { ListToolsRequestSchema },
+    ] = await Promise.all([
+      load("@modelcontextprotocol/sdk/client/index.js"),
+      load("@modelcontextprotocol/sdk/server/index.js"),
+      load("@modelcontextprotocol/sdk/inMemory.js"),
+      load("@modelcontextprotocol/sdk/types.js"),
+    ])
+    const client = new Client({ name: "fixture-client", version: "1" })
+    const server = new Server(
+      { name: "fixture-server", version: "1" },
+      { capabilities: { tools: {} } }
+    )
+    server.setRequestHandler(ListToolsRequestSchema, () => ({ tools: [] }))
+    const [left, right] = InMemoryTransport.createLinkedPair()
+    try {
+      await server.connect(right)
+      await client.connect(left, { timeout: 5000 })
+      assert.deepEqual(await client.listTools(undefined, { timeout: 5000 }), {
+        tools: [],
+      })
+    } finally {
+      await Promise.all([client.close(), server.close()])
+    }
   }
-})
+)
 
 test("glob expansion bounds repeated non-expanding braces in a memory and time limited child", async () => {
   const config = createRequire(

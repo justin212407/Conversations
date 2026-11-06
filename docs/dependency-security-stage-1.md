@@ -40,35 +40,35 @@ Each selector below is present in root package.json and the frozen lockfile. All
 
 Original ranges come from installed published package manifests, not overridden lockfile peer declarations. Duplicate peer-context instances are deduplicated here; all 27 unique selected edges satisfy the original ranges.
 
-| Parent                                   | Dependency                | Original range | Selected |
-| ---------------------------------------- | ------------------------- | -------------- | -------- | --------- | ------- |
-| @ai-sdk/provider-utils@2.2.8             | nanoid                    | `^3.3.8`       | 3.3.18   |
-| @babel/helper-compilation-targets@7.28.6 | browserslist              | `^4.24.0`      | 4.29.3   |
-| @eslint/config-array@0.21.2              | minimatch                 | `^3.1.5`       | 3.1.5    |
-| @eslint/eslintrc@3.3.7                   | minimatch                 | `^3.1.5`       | 3.1.5    |
-| @google/genai@2.32.0                     | @modelcontextprotocol/sdk | `^1.25.2`      | 1.32.2   |
-| @google/genai@2.32.0                     | ws                        | `^8.18.0`      | 8.22.1   |
-| @hono/node-server@2.1.6                  | hono                      | `^4            |          | ^5.0.0-0` | 4.12.25 |
-| @modelcontextprotocol/sdk@1.32.2         | hono                      | `^4.11.4`      | 4.12.25  |
-| @sentry/bundler-plugins@10.78.0          | webpack                   | `>=5.0.0`      | 5.112.0  |
-| @sentry/webpack-plugin@5.4.1             | webpack                   | `>=5.0.0`      | 5.112.0  |
-| @tailwindcss/node@4.1.18                 | source-map-js             | `^1.2.1`       | 1.2.2    |
-| ajv@8.20.0                               | fast-uri                  | `^3.0.1`       | 3.1.7    |
-| convex-helpers@0.1.119                   | hono                      | `^4.0.5`       | 4.12.25  |
-| convex@1.42.0                            | ws                        | `8.21.0`       | 8.21.0   |
-| eslint-plugin-react@7.37.5               | minimatch                 | `^3.1.2`       | 3.1.5    |
-| eslint@9.39.5                            | minimatch                 | `^3.1.5`       | 3.1.5    |
-| express-rate-limit@8.7.3                 | ip-address                | `^10.2.0`      | 10.3.1   |
-| flat-cache@4.0.1                         | flatted                   | `^3.2.9`       | 3.4.2    |
-| micromatch@4.0.8                         | picomatch                 | `^2.3.1`       | 2.3.2    |
-| minimatch@10.2.5                         | brace-expansion           | `^5.0.5`       | 5.0.12   |
-| minimatch@3.1.5                          | brace-expansion           | `^1.1.7`       | 1.1.20   |
-| minimizer-webpack-plugin@5.14.0          | webpack                   | `^5.1.0`       | 5.112.0  |
-| postcss@8.5.23                           | source-map-js             | `^1.2.1`       | 1.2.2    |
-| postcss@8.5.32                           | source-map-js             | `^1.2.2`       | 1.2.2    |
-| schema-utils@4.8.2                       | webpack                   | `^5.112.0`     | 5.112.0  |
-| socks@2.8.10                             | ip-address                | `^10.1.1`      | 10.3.1   |
-| update-browserslist-db@1.3.4             | browserslist              | `>= 4.21.0`    | 4.29.3   |
+| Parent                                   | Dependency                | Original range     | Selected |
+| ---------------------------------------- | ------------------------- | ------------------ | -------- |
+| @ai-sdk/provider-utils@2.2.8             | nanoid                    | `^3.3.8`           | 3.3.18   |
+| @babel/helper-compilation-targets@7.28.6 | browserslist              | `^4.24.0`          | 4.29.3   |
+| @eslint/config-array@0.21.2              | minimatch                 | `^3.1.5`           | 3.1.5    |
+| @eslint/eslintrc@3.3.7                   | minimatch                 | `^3.1.5`           | 3.1.5    |
+| @google/genai@2.32.0                     | @modelcontextprotocol/sdk | `^1.25.2`          | 1.32.2   |
+| @google/genai@2.32.0                     | ws                        | `^8.18.0`          | 8.22.1   |
+| @hono/node-server@2.1.6                  | hono                      | `^4 \|\| ^5.0.0-0` | 4.12.25  |
+| @modelcontextprotocol/sdk@1.32.2         | hono                      | `^4.11.4`          | 4.12.25  |
+| @sentry/bundler-plugins@10.78.0          | webpack                   | `>=5.0.0`          | 5.112.0  |
+| @sentry/webpack-plugin@5.4.1             | webpack                   | `>=5.0.0`          | 5.112.0  |
+| @tailwindcss/node@4.1.18                 | source-map-js             | `^1.2.1`           | 1.2.2    |
+| ajv@8.20.0                               | fast-uri                  | `^3.0.1`           | 3.1.7    |
+| convex-helpers@0.1.119                   | hono                      | `^4.0.5`           | 4.12.25  |
+| convex@1.42.0                            | ws                        | `8.21.0`           | 8.21.0   |
+| eslint-plugin-react@7.37.5               | minimatch                 | `^3.1.2`           | 3.1.5    |
+| eslint@9.39.5                            | minimatch                 | `^3.1.5`           | 3.1.5    |
+| express-rate-limit@8.7.3                 | ip-address                | `^10.2.0`          | 10.3.1   |
+| flat-cache@4.0.1                         | flatted                   | `^3.2.9`           | 3.4.2    |
+| micromatch@4.0.8                         | picomatch                 | `^2.3.1`           | 2.3.2    |
+| minimatch@10.2.5                         | brace-expansion           | `^5.0.5`           | 5.0.12   |
+| minimatch@3.1.5                          | brace-expansion           | `^1.1.7`           | 1.1.20   |
+| minimizer-webpack-plugin@5.14.0          | webpack                   | `^5.1.0`           | 5.112.0  |
+| postcss@8.5.23                           | source-map-js             | `^1.2.1`           | 1.2.2    |
+| postcss@8.5.32                           | source-map-js             | `^1.2.2`           | 1.2.2    |
+| schema-utils@4.8.2                       | webpack                   | `^5.112.0`         | 5.112.0  |
+| socks@2.8.10                             | ip-address                | `^10.1.1`          | 10.3.1   |
+| update-browserslist-db@1.3.4             | browserslist              | `>= 4.21.0`        | 4.29.3   |
 
 All AI 4 / old provider peer instances in backend and widget-linked trees retain supported Zod 3.25.76: @ai-sdk/google 1.2.22, @ai-sdk/openai 1.3.23, provider-utils 2.2.8, react 1.2.12, ui-utils 1.2.11 and ai 4.3.19. No unsupported Zod 4 legacy peer is accepted.
 
