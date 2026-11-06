@@ -30,6 +30,19 @@ Old AI/agent/provider consumers move together only onto an upstream-supported pe
 
 Do not run Convex dev, code generation, component migration or deployment for validation. The legacy backend's existing build command performs remote work and is not an offline gate. Use local TypeScript/build analysis and synthetic representative data/provider fixtures; establish the original baseline first. A pre-existing failure stays visible and cannot justify a new regression or a claimed passing legacy gate. If compatibility requires stored-data changes or cannot be proven offline, stop that portion for explicit review and leave its residual findings open.
 
+## Preserved validator and retained widget contracts
+
+The validator upgrade preserves the existing application contract rather than importing stricter library defaults implicitly:
+
+- Resource and request IDs accept the existing case-insensitive hexadecimal 8-4-4-4-12 spelling, including nil/max IDs and non-RFC version/variant combinations. API normalization to lowercase and browser/shared preservation of parsed string values remain unchanged.
+- Existing shared integer fields preserve finite `Number.isInteger` acceptance, including representable integers outside the safe-integer interval, together with their current positive/nonnegative and explicit limit checks. This does not change the separate cursor/database checks or increase any configured bound.
+- Existing UTC timestamp validators accept valid calendar dates with `HH:mmZ` or `HH:mm:ss[.fraction]Z`, preserving the previously accepted omitted-seconds form. Invalid dates, unsupported local/offset spellings and other previously rejected values remain rejected.
+- Strict request/event/storage objects still reject unknown properties. Optional keys, omitted-key/default behavior, numeric coercion, record keys and safe error projection retain their current meaning. Configuration errors expose field names, never supplied values or raw provider errors.
+
+Retained legacy agent records remain readable without rewriting stored data or changing component indexes. The public paginated message query keeps the existing MessageDoc/page/cursor interface; it is not replaced with a new SDK UI-message response. The retained widget preserves displayed text exactly, including concatenation without inserted spaces, message role/order, repeated-identical utterance identity, the existing final-message ID of a grouped assistant/tool turn, skipped rows without a message, and visible failed/empty/streaming behavior. An upstream UI helper's changed delimiter or grouping identity does not silently redefine that presentation contract.
+
+The supported agent/provider upgrade retains the configured model, instructions, thread creation, greeting save, prior-context generation and list/pagination behavior. Historical tool/file/reasoning/usage metadata must still decode through the supported published conversion path. An offline synthetic provider proves generation/result/stream interfaces without any model request. No proof from this stage claims a deployed component or changes actual Convex data.
+
 ## Required verification and preserved behavior
 
 Use a clean frozen install after lockfile changes, with the current Node 22/pnpm 10.4.1 toolchain and no application/provider environment loading. Run service build/typecheck/lint, the existing focused service/harness tests, process smoke and isolated actual-container regression appropriate to changes. All temporary databases/Redis/projects/ports/configuration remain run-owned; never use a shared live service or operator configuration to make these checks pass.
