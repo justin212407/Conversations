@@ -1,5 +1,5 @@
 ---
-status: planned
+status: in-progress
 depends: [workspace, observability, security-dependencies]
 specs:
   - specs/behaviors/observability.md
