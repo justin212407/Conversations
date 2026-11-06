@@ -28,7 +28,7 @@
     "@types/pg": "8.23.1",
     "@workspace/eslint-config": "workspace:*",
     "@workspace/typescript-config": "workspace:*",
-    "eslint": "^9.39.2",
+    "eslint": "9.39.5",
     "tsx": "4.23.15",
     "typescript": "5.9.3"
   },

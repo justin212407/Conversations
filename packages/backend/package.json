@@ -19,7 +19,9 @@
     "@clerk/backend": "^3.7.0",
     "@convex-dev/agent": "0.1.16",
     "ai": "4.3.19",
-    "convex": "^1.41.0",
-    "convex-helpers": "^0.1.119"
+    "convex": "1.42.0",
+    "convex-helpers": "^0.1.119",
+    "zod": "3.25.76",
+    "hono": "4.12.25"
   }
 }
