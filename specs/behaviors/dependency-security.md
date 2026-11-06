@@ -1,0 +1,49 @@
+# Whole-workspace dependency security
+
+## Scope and principles
+
+The complete current and retained legacy dependency graph remains subject to the repository's high/critical audit gate. Include production, development, optional and transitive dependencies across services, the personal workspace, shared UI, widget and Convex packages. Preserve existing application contracts, retained functionality and stored data while removing known vulnerable resolutions. An inactive package is not excluded from the scan.
+
+Prefer supported compatible releases and small reviewable changes. Do not delete dependencies/features, omit legacy importers, suppress advisories, change the severity threshold, hide registry errors or automatically apply audit fixes to obtain a passing result. No provider/cloud credential, paid feature, live migration or deployment is required for dependency remediation.
+
+## Evidence and audit results
+
+The existing free whole-workspace audit and its fail-closed classification remain unchanged: a valid report without high/critical findings can pass; high/critical findings and malformed/unavailable scans remain nonzero and distinguishable. Lower-severity findings remain visible. Record the exact lockfile, advisory/package/version information, affected owners and actual gate results used for a remediation decision.
+
+Public summaries may cap paths or advisory output for privacy/size. Such caps do not establish an exhaustive graph inventory. When assigning work, supplement capped evidence with the actual lockfile graph or privately parsed uncapped scanner data, then publish only safe package/version/owner metadata. No root environment, provider key or raw registry/driver error is needed in a public report.
+
+Remediation may land in explicitly owned stages. An intermediate stage can reduce findings without passing the full audit, provided every residual is named and owned by a committed downstream plan and its issue remains open. Do not turn that expected nonzero result into success or claim complete security/#25/Slice1 acceptance. Newly introduced high/critical vulnerable packages or incompatible resolutions block that stage; newly disclosed baseline issues must be distinguished from graph changes and explicitly reconciled.
+
+## Resolution changes and compatibility
+
+Update supported direct dependencies and compatible transitive ranges before considering overrides. Keep related peer families coherent and preserve the pinned Node/pnpm toolchain. Do not move to an unrelated major release merely because it is latest. Exact chosen releases and material lockfile changes are recorded in the implementation plan and review evidence.
+
+An override outside a parent's declared range requires an exact scoped edge, upstream API/engine/export evidence, a compatibility rationale and meaningful runtime/type verification of that parent. Do not apply a blanket major override, silence peer conflicts or treat installation success as compatibility proof. If a compatible fix is unavailable within a bounded stage, retain the failing audit evidence and assign the edge to the downstream compatibility plan before merge.
+
+Published packages that bundle dependencies require shipped-artifact review. A vulnerable path disappearing from an npm dependency graph does not establish that the code was removed or patched. Verify the relevant shipped code or an authoritative upstream remediation; a bundled vulnerable implementation remains residual security work even if the registry audit no longer sees it.
+
+## Schema and retained legacy boundaries
+
+The patched validation library must actually execute patched parsing code. Replacing a package version while importing its vulnerable legacy compatibility parser is not a fix. Preserve valid/invalid public payload behavior, strict unknown-field handling, cardinality/context bounds, UUID conventions, JSON/state serialization and safe error projections through any validator migration. Differences required by a deliberate security fix are specified and tested rather than silently inherited from a major release.
+
+Old AI/agent/provider consumers move together only onto an upstream-supported peer family. Prove their exported API and serialized message/component compatibility, rather than forcing a new validator through unsupported old peers. Preserve existing stored component/message shapes and the current backend/widget response semantics. Retained Convex data is never imported, altered, deleted or migrated as part of dependency work.
+
+Do not run Convex dev, code generation, component migration or deployment for validation. The legacy backend's existing build command performs remote work and is not an offline gate. Use local TypeScript/build analysis and synthetic representative data/provider fixtures; establish the original baseline first. A pre-existing failure stays visible and cannot justify a new regression or a claimed passing legacy gate. If compatibility requires stored-data changes or cannot be proven offline, stop that portion for explicit review and leave its residual findings open.
+
+## Required verification and preserved behavior
+
+Use a clean frozen install after lockfile changes, with the current Node 22/pnpm 10.4.1 toolchain and no application/provider environment loading. Run service build/typecheck/lint, the existing focused service/harness tests, process smoke and isolated actual-container regression appropriate to changes. All temporary databases/Redis/projects/ports/configuration remain run-owned; never use a shared live service or operator configuration to make these checks pass.
+
+Verify personal workspace build/typecheck/lint, its existing unit/controller integration and reusable browser fixture where available, plus shared UI/widget type/build behavior and targeted CLI/import smoke for changed tooling. This does not claim browser CI coverage already exists or replace real Clerk/provider acceptance. Use synthetic fixtures instead of live cloud services. Record uncovered checks and inherited failures honestly.
+
+Targeted security/compatibility checks must cover behavior that ordinary compilation misses: validator bound enforcement, legacy AI schema/message conversion, retained streaming/result interfaces, vulnerable parser/prototype-sensitive paths and changed CLI packaged entrypoints as applicable. Do not add tests that merely mirror version strings. Existing Sentry privacy hooks and disabled build wrapper/tunnel remain intact; broader telemetry privacy hardening is separate work.
+
+No audit finding justifies weakening ownership, request idempotency, text/voice response ownership, worker fencing, socket recovery, diagnostics privacy or the application/provider boundaries. Hosted CI remains unavailable under the owner's explicit local-verification exception; report local and hosted results separately.
+
+## Primary guidance
+
+- [pnpm audit](https://pnpm.io/cli/audit) documents whole-graph auditing and failure thresholds.
+- [pnpm overrides](https://pnpm.io/settings#overrides) documents targeted dependency-edge overrides; it does not prove API compatibility.
+- [Zod advisory GHSA-mrhx-c7xc-m3w5](https://github.com/advisories/GHSA-mrhx-c7xc-m3w5) identifies affected versions below 4.6.6; [Zod 4 migration guidance](https://zod.dev/v4/changelog) documents validation API/semantic changes.
+- [jsondiffpatch advisory GHSA-j4fx-xxwh-2485](https://github.com/advisories/GHSA-j4fx-xxwh-2485) identifies vulnerable patch APIs below 0.7.6.
+- [Sentry advisory GHSA-mchm-gjx6-7h55](https://github.com/advisories/GHSA-mchm-gjx6-7h55) identifies the patched Next integration line. Package versions/peer/engine metadata come from the public npm registry; runtime compatibility still requires verification.
