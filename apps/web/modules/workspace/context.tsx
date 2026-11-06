@@ -12,6 +12,7 @@ import { useAuth } from "@clerk/nextjs"
 import { useRouter } from "next/navigation"
 import { createWorkspaceApi, sessionTokenSource } from "./api"
 import { createWorkspaceStore, type WorkspaceStore } from "./model"
+import { workspaceApiOrigin } from "./config"
 
 const WorkspaceContext = createContext<WorkspaceStore | null>(null)
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
@@ -22,7 +23,11 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     token.update(getToken)
   }, [getToken, token])
   const store = useMemo(() => {
-    const url = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4300"
+    const url = workspaceApiOrigin(
+      process.env.NEXT_PUBLIC_API_URL,
+      // eslint-disable-next-line turbo/no-undeclared-env-vars -- Next.js replaces this constant at build time.
+      process.env.NODE_ENV
+    )
     const currentToken = token.getToken
     return createWorkspaceStore({
       api: createWorkspaceApi({ url, getToken: currentToken }),
