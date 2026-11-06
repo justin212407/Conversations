@@ -32,7 +32,7 @@ Do not run Convex dev, code generation, component migration or deployment for va
 
 ## Required verification and preserved behavior
 
-Use a clean frozen install after lockfile changes, with the current Node22/pnpm10.4.1 toolchain and no application/provider environment loading. Run service build/typecheck/lint, the existing focused service/harness tests, process smoke and isolated actual-container regression appropriate to changes. All temporary databases/Redis/projects/ports/configuration remain run-owned; never use a shared live service or operator configuration to make these checks pass.
+Use a clean frozen install after lockfile changes, with the current Node 22/pnpm 10.4.1 toolchain and no application/provider environment loading. Run service build/typecheck/lint, the existing focused service/harness tests, process smoke and isolated actual-container regression appropriate to changes. All temporary databases/Redis/projects/ports/configuration remain run-owned; never use a shared live service or operator configuration to make these checks pass.
 
 Verify personal workspace build/typecheck/lint, its existing unit/controller integration and reusable browser fixture where available, plus shared UI/widget type/build behavior and targeted CLI/import smoke for changed tooling. This does not claim browser CI coverage already exists or replace real Clerk/provider acceptance. Use synthetic fixtures instead of live cloud services. Record uncovered checks and inherited failures honestly.
 
@@ -44,6 +44,6 @@ No audit finding justifies weakening ownership, request idempotency, text/voice 
 
 - [pnpm audit](https://pnpm.io/cli/audit) documents whole-graph auditing and failure thresholds.
 - [pnpm overrides](https://pnpm.io/settings#overrides) documents targeted dependency-edge overrides; it does not prove API compatibility.
-- [Zod advisory GHSA-mrhx-c7xc-m3w5](https://github.com/advisories/GHSA-mrhx-c7xc-m3w5) identifies affected versions below4.6.6; [Zod4 migration guidance](https://zod.dev/v4/changelog) documents validation API/semantic changes.
-- [jsondiffpatch advisory GHSA-j4fx-xxwh-2485](https://github.com/advisories/GHSA-j4fx-xxwh-2485) identifies vulnerable patch APIs below0.7.6.
+- [Zod advisory GHSA-mrhx-c7xc-m3w5](https://github.com/advisories/GHSA-mrhx-c7xc-m3w5) identifies affected versions below 4.6.6; [Zod 4 migration guidance](https://zod.dev/v4/changelog) documents validation API/semantic changes.
+- [jsondiffpatch advisory GHSA-j4fx-xxwh-2485](https://github.com/advisories/GHSA-j4fx-xxwh-2485) identifies vulnerable patch APIs below 0.7.6.
 - [Sentry advisory GHSA-mchm-gjx6-7h55](https://github.com/advisories/GHSA-mchm-gjx6-7h55) identifies the patched Next integration line. Package versions/peer/engine metadata come from the public npm registry; runtime compatibility still requires verification.
