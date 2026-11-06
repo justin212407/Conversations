@@ -1,13 +1,17 @@
-import * as Sentry from "@sentry/nextjs";
+import * as Sentry from "@sentry/nextjs"
+import { reportFailure } from "./modules/diagnostics/policy"
 
 export async function register() {
-  if (process.env.NEXT_RUNTIME === "nodejs") {
-    await import("./sentry.server.config");
-  }
-
-  if (process.env.NEXT_RUNTIME === "edge") {
-    await import("./sentry.edge.config");
+  try {
+    if (process.env.NEXT_RUNTIME === "nodejs")
+      await import("./sentry.server.config")
+    if (process.env.NEXT_RUNTIME === "edge")
+      await import("./sentry.edge.config")
+  } catch {
+    // Optional diagnostics cannot prevent startup.
   }
 }
 
-export const onRequestError = Sentry.captureRequestError;
+export const onRequestError = () => {
+  reportFailure(Sentry.captureEvent, "request_error")
+}
