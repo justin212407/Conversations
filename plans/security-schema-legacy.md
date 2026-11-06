@@ -1,5 +1,5 @@
 ---
-status: planned
+status: in-progress
 depends: [security-dependencies]
 specs:
   - specs/architecture.md
@@ -46,7 +46,7 @@ Registry peers establish a candidate family, not component data compatibility. A
 
 ## Notes
 
-Compatible stage [PR #36](https://github.com/justin212407/Conversations/pull/36) explicitly transfers the two still-failing high findings in the [exact residual ledger](../docs/dependency-security-stage-1.md). This plan remains planned until that prerequisite actually merges. Zod owners are apps/api, apps/realtime, apps/web, apps/widget, apps/worker, packages/backend, packages/database, packages/service-runtime, packages/shared and packages/ui; jsondiffpatch owners are apps/widget and packages/backend. The preceding stage does not waive these findings or final #25 acceptance.
+Compatible stage [PR #36](https://github.com/justin212407/Conversations/pull/36) explicitly transfers the two still-failing high findings in the [exact residual ledger](../docs/dependency-security-stage-1.md). PR #36 actually merged as 55f4258 before this work began; the prior head is confirmed on main. Zod owners are apps/api, apps/realtime, apps/web, apps/widget, apps/worker, packages/backend, packages/database, packages/service-runtime, packages/shared and packages/ui; jsondiffpatch owners are apps/widget and packages/backend. The preceding stage does not waive these findings or final #25 acceptance.
 
 Planned companion authored before implementation, as requested. It is deliberately downstream of the compatible stage's merge. Candidate version evidence comes from primary npm registry metadata and the relevant Zod/jsondiffpatch advisories; final selected resolutions and compatibility results must be recorded during implementation.
 
