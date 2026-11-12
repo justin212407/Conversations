@@ -124,7 +124,8 @@ export function ownedProcess(
       if (process.platform !== "linux")
         throw new GateFailure("fixture-platform", "precondition")
       await access("/proc/self/stat")
-      if (signal?.aborted) throw new GateFailure(stage, "interrupted")
+      if (cleaning || signal?.aborted)
+        throw new GateFailure(stage, "interrupted")
       release = owned.holdWriter()
       attempted = true
       const outcome = new Promise((resolve) => {

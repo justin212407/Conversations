@@ -12,6 +12,40 @@ import {
 } from "../../apps/web/test/browser-server.mjs"
 import { controlListenerClosed } from "../regression/browser.mjs"
 
+test("concurrent cleanup during preparation preflight prevents a later writer spawn", async () => {
+  const owned = await privateRunDirectory()
+  const marker = join(owned.directory, "spawned")
+  let release
+  const leased = {
+    ...owned,
+    holdWriter() {
+      release = owned.holdWriter()
+      return release
+    },
+  }
+  const child = ownedProcess(leased, { timeoutMs: 500 })
+  const running = child.run(process.execPath, [
+    "--eval",
+    `require('node:fs').writeFileSync(${JSON.stringify(marker)}, String(process.pid)); process.disconnect?.()`,
+  ])
+  try {
+    assert.equal(await child.cleanup(), true)
+    await assert.rejects(running, { code: "interrupted" })
+    await assert.rejects(access(marker), { code: "ENOENT" })
+  } finally {
+    await running.catch(() => {})
+    await child.cleanup()
+    if (release) {
+      // The old implementation may have launched after cleanup returned. Join
+      // that actual short-lived child before recovering this test's lease.
+      const pid = Number(await readFile(marker, "utf8"))
+      assert.equal(await groupQuiet(pid), true)
+      release()
+    }
+    await owned.remove()
+  }
+})
+
 test("private writer leases block removal until idempotent verified release", async () => {
   const owned = await privateRunDirectory()
   const release = owned.holdWriter()
