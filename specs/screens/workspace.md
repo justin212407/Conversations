@@ -8,7 +8,7 @@ The browser obtains an internal account through authenticated `GET /v1/me`; acco
 
 ## Layout and display
 
-Reuse the existing theme, responsive sidebar, buttons and shared AI conversation/message/input primitives. Navigation uses developer-workspace language, personal identity and conversations; support/widget configuration, organization selection and unimplemented projects/files/tools do not appear as active destinations. Voice controls arrive with the voice feature, and the text flow never requests microphone permission.
+Reuse the existing theme, responsive sidebar, buttons and shared AI conversation/message/input primitives. Navigation uses developer-workspace language, personal identity and conversations; support/widget configuration, organization selection and unimplemented projects/files/tools do not appear as active destinations. Voice controls follow [durable voice behavior](../behaviors/voice.md); the text flow never requests microphone permission.
 
 The sidebar lists owned conversations, newest first, with active/archived filters, selected state and explicit pagination. Creation opens the new durable conversation. The detail header shows title/status and rename/archive/unarchive/delete actions; destructive deletion requires confirmation. Lifecycle conflicts preserve the current conversation and explain that an active response must finish or be recovered first.
 
@@ -24,10 +24,16 @@ Each text/retry intent receives one UUID. An uncertain network/503 outcome retai
 
 Reload/reopen fetches the same owned persisted history, and continuing retains the server's completed context. Reconnect, uncertain delivery and safe errors provide explicit recovery controls. API error responses and provider failure codes map to concise user feedback without raw URLs, credentials, driver messages or SDK errors.
 
+## Voice controls
+
+An explicit Start voice action requests microphone permission before creating a call. Denial leaves text usable. Show starting/listening/speaking/ending/reconciling/ended and safe failure/interruption feedback; browser captions remain provisional until replaced by server-owned durable messages. The existing text input may retain a draft while the one active interaction prevents another admission.
+
+Stop/navigation/account changes clean up owned media, listeners, timers and audio without letting late events mutate the new selection. Reload discovers the existing session and offers Stop/Check status; it never silently creates another call. Uncertain voice-start acknowledgement retains one bounded account/conversation-scoped request UUID without storing join URLs, credentials or transcript. A later completed-context resume is a fresh call after the previous session is terminal. Failed voice sessions never use the text-worker retry action.
+
 ## Accessibility and responsiveness
 
 Keyboard users can create/select conversations, load more history, edit titles, send/retry and operate lifecycle confirmation. Controls have labels, focus remains usable after actions, and mobile navigation can open/close without horizontal overflow. Main content and input remain usable at narrow and desktop widths. Completed messages are selectable/readable, and the composer remains reachable during long histories.
 
 ## Scope
 
-This screen consumes the existing account, conversation, generation and recovery interfaces. Voice orchestration is #23; projects/files/tools, collaborative presence, deployment and broader diagnostics remain separately tracked. Real-user Clerk/browser evidence is distinguished from deterministic test fixtures.
+This screen consumes the existing account, conversation, generation and recovery interfaces. Voice orchestration is defined by #23; projects/files/tools, collaborative presence, deployment and broader diagnostics remain separately tracked. Real-user Clerk/browser evidence is distinguished from deterministic test fixtures.

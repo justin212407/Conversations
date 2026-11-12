@@ -27,6 +27,8 @@ A new voice session is linked to an account-owned conversation before use. The a
 
 The integration must be proven against real provider events before #23 is closed. Supported provider mechanisms are documented in [Vapi server events](https://docs.vapi.ai/server-url/events) and [server authentication](https://docs.vapi.ai/server-url/server-authentication). Authentication configuration belongs on trusted saved provider resources; credentials are not sent to the browser.
 
+Voice session admission, server-authoritative cumulative transcript reconciliation, seeded-context exclusion and terminal fencing follow [durable voice behavior](behaviors/voice.md). A short real-provider capability probe precedes broad implementation; undocumented provider identity/prefix behavior is not assumed. The existing operation/outbox fence remains shared by text and voice.
+
 ## Operations
 
 Use Docker Compose locally with persistent PostgreSQL and Redis volumes and independently runnable frontend/API/worker/realtime processes. Railway is the initial deployment target; provisioning and deployment evidence belong to #26 and require the actual account/configuration. No cloud deployment is claimed by this specification.
