@@ -40,6 +40,8 @@ The patched validation/legacy compatibility and complete audit acceptance of [de
 - [ ] Full affected service/frontend/widget/UI/legacy gates have actual evidence, inherited limitations stay visible and no new regressions or live/provider/config/data mutation is introduced.
 - [ ] A fresh valid complete-workspace audit has zero high/critical findings without ignores/exclusions/scanner weakening; otherwise final acceptance and #25 remain open.
 
+URL compatibility tests compare parsed values and effective connection/guard meaning, including patched trim and tab/LF/CR normalization. No byte-identical raw environment URL promise or broader origin permission is introduced.
+
 ## Risks / unknowns
 
 Registry peers establish a candidate family, not component data compatibility. Agent 0.2 / AI 5 changes may require API adaptation and could expose pre-existing legacy defects. The current source must be statically inventoried before modifying it; actual stored data must not be touched. Zod 4 defaults/coercion/UUID/integer/error semantics can change public validation even when compilation passes. Some transitive compatibility fixes may lack supported parent releases; stop and review a genuine blocker rather than force an unsupported major or fabricate a green audit.
