@@ -2,6 +2,8 @@ import process from "node:process"
 import { createServer } from "node:net"
 import { readFile } from "node:fs/promises"
 import { generateKeyPairSync, randomBytes } from "node:crypto"
+import { dirname, basename } from "node:path"
+import { isIP } from "node:net"
 import { fileURLToPath, URL } from "node:url"
 import {
   childEnvironment,
@@ -188,8 +190,18 @@ export async function prepare({ browser = false } = {}) {
 export function composeController(
   owned,
   prefix,
-  { execute = run, signal, env = childEnvironment() } = {}
+  { execute = run, signal, env = childEnvironment(), files = [] } = {}
 ) {
+  if (
+    !Array.isArray(files) ||
+    files.some(
+      (file) =>
+        typeof file !== "string" ||
+        dirname(file) !== owned.directory ||
+        !/^[a-z0-9.-]+$/.test(basename(file))
+    )
+  )
+    throw new GateFailure("compose-files", "precondition")
   const base = [
     ...prefix,
     "compose",
@@ -201,6 +213,7 @@ export function composeController(
     owned.project,
     "-f",
     "docker-compose.regression.yml",
+    ...files.flatMap((file) => ["-f", file]),
     "--profile",
     "observability",
   ]
@@ -241,6 +254,57 @@ export function composeController(
   }
   return {
     command,
+    async inspect(service) {
+      if (!/^[a-z][a-z0-9-]{0,40}$/.test(service))
+        throw new GateFailure("owned-service-inspect", "precondition")
+      const id = (
+        await command(["ps", "-a", "-q", service], "owned-service-id")
+      ).output.trim()
+      if (!/^[a-f0-9]{12,64}$/.test(id))
+        throw new GateFailure("owned-service-inspect", "invalid_result")
+      const result = json(
+        (
+          await execute("docker", [...prefix, "inspect", id], {
+            env,
+            stage: "owned-service-inspect",
+            timeoutMs: 15000,
+          })
+        ).output,
+        "owned-service-inspect"
+      )
+      const value =
+        Array.isArray(result) && result.length === 1 ? result[0] : undefined
+      if (
+        value?.Config?.Labels?.["com.docker.compose.project"] !==
+          owned.project ||
+        !Number.isInteger(value?.State?.ExitCode) ||
+        typeof value?.State?.OOMKilled !== "boolean" ||
+        ![
+          "created",
+          "running",
+          "paused",
+          "restarting",
+          "removing",
+          "exited",
+          "dead",
+        ].includes(value?.State?.Status)
+      )
+        throw new GateFailure("owned-service-inspect", "invalid_result")
+      const networks = Object.entries(value.NetworkSettings?.Networks ?? {})
+      if (
+        networks.length !== 1 ||
+        networks[0][0] !== owned.project + "_default"
+      )
+        throw new GateFailure("owned-service-inspect", "invalid_result")
+      const address = networks[0][1]?.IPAddress
+      return {
+        state: value.State.Status,
+        exitCode: value.State.ExitCode,
+        oomKilled: value.State.OOMKilled,
+        addresses:
+          typeof address === "string" && isIP(address) === 4 ? [address] : [],
+      }
+    },
     async cleanup() {
       if (cleaning) return cleaning
       cleaning = (async () => {

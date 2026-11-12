@@ -15,7 +15,7 @@ concurrency:
 jobs:
   foundation:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     services:
       postgres:
         image: postgres:17-alpine
@@ -51,6 +51,8 @@ jobs:
       - run: pnpm services:smoke
       - name: Deterministic isolated container lifecycle
         run: pnpm services:regression
+      - name: Owned diagnostic shutdown with real DNS failure and healthy controls
+        run: pnpm services:shutdown-regression
       - name: Verify private journal is not tracked
         run: test -z "$(git ls-files -- docs/local-change-log.md)"
 

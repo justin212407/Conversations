@@ -85,6 +85,8 @@ The accepted measured design for step 11 is a default OTLP transport factory ret
 
 Implementation is in progress against the accepted proposal. Main prerequisites are actually merged: workspace PR #32, regression foundation PR #34, frontend privacy/configuration PR #37 and dependency/schema PR #38 (`acf433a6c73673732e8a05040d4b311c08f1c0f1`). Existing actual Clerk/Google acceptance is recorded in the completed workspace plan; later read-only Clerk/history checks were separate from synthetic gates. The initial shared session extraction and isolated real-browser runner are implemented. Final frozen-source gates, independent review and closeout remain pending; unchecked criteria below are not a claim of acceptance.
 
+Runtime lifetime checkpoints are implemented at `046ef58` (compiled OS lookup owner/tests), `bf0e50b` (owned Agent/TLS/default Diagnostics integration) and root correction `ea1f33a` (bounded SDK settlement). The repository-owned shutdown matrix now passes all three fresh actual API scenarios, natural exit/child joins, real healthy spans and ten packaged OS/hosts/Docker lookup comparisons. These are implementation checkpoints; final frozen-source foundation/browser/audit gates, independent reviews and separate real Clerk compatibility remain required before closeout. No completed plan is changed.
+
 Primary guidance reviewed: [Playwright CI](https://playwright.dev/docs/ci), [browser installation](https://playwright.dev/docs/browsers), [BrowserServer lifecycle](https://playwright.dev/docs/api/class-browserserver) and [route.fetch](https://playwright.dev/docs/api/class-route#route-fetch). Their availability does not replace checking the actual pinned source/API and cleanup behavior during implementation.
 
 ## Follow-ups

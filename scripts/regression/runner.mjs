@@ -8,6 +8,8 @@ export async function runRegression(
   {
     prepareRun = prepare,
     beforeStart,
+    beforeUp,
+    services = [],
     faults = [],
     resolveDocker = verifyDocker,
     makeCompose = composeController,
@@ -16,6 +18,11 @@ export async function runRegression(
 ) {
   const fault = args.find((value) => value.startsWith("--fault="))?.slice(8)
   if (
+    !Array.isArray(services) ||
+    services.some(
+      (value) =>
+        typeof value !== "string" || !/^[a-z][a-z0-9-]{0,40}$/.test(value)
+    ) ||
     args.some(
       (value) =>
         ![
@@ -74,9 +81,11 @@ export async function runRegression(
     await docker.command(["config", "--quiet"], stage)
     stage = "image-build"
     await docker.command(["build", "api"], stage, 12 * 60 * 1000)
+    stage = "before-up"
+    await beforeUp?.(owned, docker, context)
     await owned.releasePorts()
     stage = "compose-up"
-    await docker.command(["up", "-d", "--no-build"], stage, 120000)
+    await docker.command(["up", "-d", "--no-build", ...services], stage, 120000)
     if (fault === "after-up")
       throw new GateFailure("fault-after-up", "assertion")
     if (fault === "startup-timeout")

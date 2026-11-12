@@ -18,6 +18,7 @@ pnpm services:gate-test
 pnpm services:test
 pnpm services:smoke
 pnpm services:regression
+pnpm services:shutdown-regression
 pnpm --filter web test
 pnpm --filter web typecheck
 pnpm --filter web lint
@@ -51,6 +52,18 @@ pnpm services:regression --fault=startup-timeout
 ```
 
 These commands are expected to fail (exit 1 for assertion/deadline,130 for signals) with `cleanup:true`. An unexpected zero exit or `cleanup:false` is a failure. External SIGINT/SIGTERM is also supported. Preserve unrelated sentinel resources/configuration while checking cleanup; never stop unrelated local services to make a run pass.
+
+## Bounded diagnostic transport and actual shutdown regression
+
+`services:shutdown-regression` runs three serial fresh API/PostgreSQL/Redis/Jaeger projects using the same verified local endpoint, private configuration, image build and cleanup modules. An internal Node DNS fixture has no host port and never forwards queries. Only that run's API container uses it; host/global resolver settings and existing stacks are untouched. One real signed request after collector outage must reach native DNS, then the normal API entry must exit **0** within the existing runtime/exporter bounds and inherited **15-second Docker grace**. The test also requires a natural Node `beforeExit` observation, all observed lookup children joined before parent exit, and no active DNS/socket/process resources. Container exit alone could hide orphan children through namespace cleanup and is insufficient.
+
+The same network with a live collector must preserve an actual parsed Jaeger HTTP span. With tracing disabled and the collector stopped, the API must exit normally without a lookup child or DNS query. The healthy case additionally compares ten actual compiled-child OS lookup cases with native lookup, including IPv4/IPv6 literals, localhost, a private hosts-file alias, Docker service DNS, family/all/hints/verbatim and inherited result ordering. No Google/Vapi/Clerk account or provider-generation call is used.
+
+The default diagnostic transport owns its public HTTP/HTTPS Agent, sockets and a one-shot child for normal operating-system `dns.lookup`. It keeps OS hosts/search behavior rather than substituting DNS resolve APIs. At most one lookup matches exporter concurrency one. A 600 ms lookup/startup budget, TERM then 50 ms KILL fallback and 100 ms exit-verification bound fit the existing 750 ms exporter and 800 ms processor limits; the service shutdown budget remains 5000 ms. The callback follows observed child exit. Closure rejects unverified termination, fences late Agent imports/connections/retries (including IP literals), and joins the same cached cleanup for concurrent callers. SDK settlement also has a finite close deadline; an unresolved queue remains cleanup failure.
+
+Lookup children receive only bounded validated hostname/options/result IPC and a concrete resolver environment allowlist: PATH, HOME, TZ, LANG, LC*ALL, LOCALDOMAIN, RES_OPTIONS, HOSTALIASES and Windows SystemRoot names. `execArgv:[]` prevents inherited import hooks, and app credentials/NODE_OPTIONS/TLS material are excluded. TLS CA/client-certificate/client-key files retain the pinned SDK's `OTEL_EXPORTER_OTLP_TRACES*_`precedence over generic`OTEL*EXPORTER_OTLP*_`, including relative paths and invalid-specific no-fallback behavior. File contents stay parent-owned; normal HTTPS verification remains enabled. Real synthetic TLS and mTLS tests exercise the compiled default path rather than only an injected Agent.
+
+This gate supplements the full foundation scenario; its fixed domain, trace causality, metrics, collector-outage and shutdown assertions remain required. Each shutdown scenario permits five minutes plus bounded shared cleanup; the foundation job allows 60 minutes for the serial focused, full-foundation and shutdown matrix. The gate prints only allowlisted state/count/cleanup summaries, never DNS packets, private resolver/connection values, TLS files, transcripts or raw captures.
 
 ## Browser layers and authentication boundary
 
