@@ -205,8 +205,8 @@ export async function until(
   }
   throw new GateFailure(stage, "command_timeout")
 }
-export async function privateRunDirectory() {
-  const parent = await realpath(tmpdir())
+export async function validatePrivateDirectory(value) {
+  const parent = await realpath(value)
   const repository = await realpath(
     fileURLToPath(new URL("../../", import.meta.url))
   )
@@ -229,11 +229,23 @@ export async function privateRunDirectory() {
     }
     if (dirname(cursor) === cursor) break
   }
+  return parent
+}
+export async function privateRunDirectory() {
+  const parent = await validatePrivateDirectory(tmpdir())
   const directory = await mkdtemp(join(parent, "conversations-regression-"))
   await chmod(directory, 0o700)
+  const writers = new Set()
+  let removing = false
   return {
     directory,
     project: "conversations-regression-" + randomUUID().replaceAll("-", ""),
+    holdWriter() {
+      if (removing) throw new GateFailure("private-files", "precondition")
+      const writer = Symbol("owned writer")
+      writers.add(writer)
+      return () => writers.delete(writer)
+    },
     async write(name, contents, mode = 0o600) {
       if (!/^[a-z0-9.-]+$/.test(name))
         throw new GateFailure("private-files", "invalid_result")
@@ -243,6 +255,8 @@ export async function privateRunDirectory() {
       return path
     },
     async remove() {
+      if (writers.size) throw new GateFailure("private-files", "cleanup_failed")
+      removing = true
       await rm(directory, { force: true, recursive: true })
     },
   }

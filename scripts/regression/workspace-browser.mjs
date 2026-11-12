@@ -17,15 +17,40 @@ export async function prepareWorkspaceBrowser(owned, context) {
     serviceFolder = join(owned.directory, "service")
   await mkdir(rendererFolder, { mode: 0o700 })
   await mkdir(serviceFolder, { mode: 0o700 })
-  const renderer = await startFixtureServer({ directory: rendererFolder })
-  context.own(() => renderer.close())
+  const setupFault = context.fault?.startsWith("fixture-")
+  const renderer = await startFixtureServer({
+    owned,
+    directory: rendererFolder,
+    signal: context.signal,
+    own: context.own,
+    hold: setupFault
+      ? context.fault === "fixture-deadline"
+        ? "--hold-ignore-term"
+        : "--hold-after-bundle"
+      : undefined,
+    onStage: () => {
+      context.setStage("fixture-bundle-complete")
+      if (context.fault === "fixture-after-bundle")
+        throw new GateFailure("fixture-fault-assertion", "assertion")
+      if (
+        context.fault === "fixture-sigint" ||
+        context.fault === "fixture-sigterm"
+      )
+        process.kill(
+          process.pid,
+          context.fault === "fixture-sigint" ? "SIGINT" : "SIGTERM"
+        )
+    },
+  })
   await owned.releasePorts("browser")
   const service = await startFixtureServer({
+    owned,
+    signal: context.signal,
+    own: context.own,
     directory: serviceFolder,
     port: owned.ports.browser,
     service: true,
   })
-  context.own(() => service.close())
   assert.equal(service.origin, "http://127.0.0.1:" + owned.ports.browser)
   const browser = await browserOwner(owned, context.signal)
   context.own(() => browser.cleanup())

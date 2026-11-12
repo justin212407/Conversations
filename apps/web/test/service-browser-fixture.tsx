@@ -21,8 +21,13 @@ const navigate = (path: string) => {
   history.pushState(null, "", path)
   window.dispatchEvent(new Event("popstate"))
 }
-let setActor: (actor: string) => void, refresh: () => void
-function Screen() {
+function Screen({
+  identity,
+  refresh,
+}: {
+  identity: (actor: string) => void
+  refresh: () => void
+}) {
   const { store, state } = useWorkspace()
   const [path, setPath] = useState(location.pathname)
   useEffect(() => {
@@ -33,14 +38,16 @@ function Screen() {
   useEffect(() => {
     store.select(path.split("/")[2] ?? null)
   }, [path, store])
-  window.serviceFixture = {
-    store,
-    identity: setActor,
-    refresh,
-    documentId,
-    displayed: () => displayedMessages(store.snapshot()),
-    diagnostics: verifyBrowserDiagnostics,
-  }
+  useEffect(() => {
+    window.serviceFixture = {
+      store,
+      identity,
+      refresh,
+      documentId,
+      displayed: () => displayedMessages(store.snapshot()),
+      diagnostics: verifyBrowserDiagnostics,
+    }
+  }, [store, identity, refresh])
   return (
     <SidebarProvider>
       <WorkspaceNavigation
@@ -67,8 +74,7 @@ const documentId = crypto.randomUUID()
 function App() {
   const [actor, updateActor] = useState("alice"),
     [revision, updateRevision] = useState(0)
-  setActor = updateActor
-  refresh = () => updateRevision((value) => value + 1)
+  const refresh = useCallback(() => updateRevision((value) => value + 1), [])
   const getToken = useCallback(
     () => window.regressionToken(actor, revision),
     [actor, revision]
@@ -84,7 +90,7 @@ function App() {
         apiUrl={window.regressionConfig.apiUrl}
         mode="test"
       >
-        <Screen />
+        <Screen identity={updateActor} refresh={refresh} />
       </WorkspaceSessionProvider>
     </ThemeProvider>
   )
