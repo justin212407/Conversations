@@ -5,7 +5,14 @@ import { GateFailure, summary, until } from "./runtime.mjs"
 export async function runRegression(
   args,
   loadVerifier,
-  { prepareRun = prepare, beforeStart, faults = [] } = {}
+  {
+    prepareRun = prepare,
+    beforeStart,
+    faults = [],
+    resolveDocker = verifyDocker,
+    makeCompose = composeController,
+    timeoutMs = 25 * 60 * 1000,
+  } = {}
 ) {
   const fault = args.find((value) => value.startsWith("--fault="))?.slice(8)
   if (
@@ -35,7 +42,7 @@ export async function runRegression(
   }
   const abort = new AbortController(),
     signal = () => abort.abort(),
-    deadline = setTimeout(signal, 25 * 60 * 1000)
+    deadline = setTimeout(signal, timeoutMs)
   process.on("SIGINT", signal)
   process.on("SIGTERM", signal)
   let owned,
@@ -58,11 +65,11 @@ export async function runRegression(
   try {
     const verify = await loadVerifier()
     stage = "docker-target"
-    const prefix = await verifyDocker()
+    const prefix = await resolveDocker()
     stage = "private-configuration"
     owned = await prepareRun()
     await beforeStart?.(owned, context)
-    docker = composeController(owned, prefix, { signal: abort.signal })
+    docker = makeCompose(owned, prefix, { signal: abort.signal })
     stage = "compose-validation"
     await docker.command(["config", "--quiet"], stage)
     stage = "image-build"

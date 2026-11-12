@@ -1,6 +1,43 @@
 // Bundle with esbuild's browser platform and run in a fresh real browser context.
 // The receiver is in memory: the synthetic DSN must never be contacted.
-import * as Sentry from "@sentry/nextjs"
+import {
+  BrowserClient,
+  SDK_VERSION,
+  createTransport,
+  setCurrentClient,
+  getClient,
+  withScope,
+  captureException,
+  captureEvent,
+  captureMessage,
+  logger,
+  metrics,
+  startSession,
+  captureSession,
+  endSession,
+  startSpan,
+  flush,
+  close,
+} from "@sentry/nextjs"
+const Sentry = {
+  BrowserClient,
+  SDK_VERSION,
+  createTransport,
+  setCurrentClient,
+  getClient,
+  withScope,
+  captureException,
+  captureEvent,
+  captureMessage,
+  logger,
+  metrics,
+  startSession,
+  captureSession,
+  endSession,
+  startSpan,
+  flush,
+  close,
+}
 import {
   initializeDiagnostics,
   reportFailure,

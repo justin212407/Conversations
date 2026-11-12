@@ -217,21 +217,25 @@ export function composeController(
     const label = "com.docker.compose.project=" + owned.project
     const remaining = []
     for (const kind of ["container", "network", "volume"]) {
-      const result = await execute(
-        "docker",
-        [
-          ...prefix,
-          kind,
-          "ls",
-          ...(kind === "container" ? ["-a"] : []),
-          "--filter",
-          "label=" + label,
-          "--format",
-          kind === "volume" ? "{{.Name}}" : "{{.ID}}",
-        ],
-        { env, stage: "cleanup-check", timeoutMs: 15000 }
-      )
-      if (result.output.trim()) remaining.push(kind)
+      try {
+        const result = await execute(
+          "docker",
+          [
+            ...prefix,
+            kind,
+            "ls",
+            ...(kind === "container" ? ["-a"] : []),
+            "--filter",
+            "label=" + label,
+            "--format",
+            kind === "volume" ? "{{.Name}}" : "{{.ID}}",
+          ],
+          { env, stage: "cleanup-check", timeoutMs: 15000 }
+        )
+        if (result.output.trim()) remaining.push(kind)
+      } catch {
+        remaining.push(kind)
+      }
     }
     return remaining
   }
@@ -243,14 +247,21 @@ export function composeController(
         let clean = true
         try {
           await owned.releasePorts()
+        } catch {
+          clean = false
+        }
+        try {
           await command(
             ["down", "--volumes", "--remove-orphans", "--timeout", "6"],
             "cleanup",
             45000,
             null
           )
-          if ((await resources()).length)
-            throw new GateFailure("cleanup-check", "cleanup_failed")
+        } catch {
+          clean = false
+        }
+        if ((await resources()).length) clean = false
+        try {
           // Only the exact unique tag produced by this run; shared build cache stays intact.
           const images = await execute(
             "docker",

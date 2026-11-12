@@ -1,3 +1,4 @@
+import { createRequire } from "node:module"
 import { build } from "esbuild"
 import postcss from "postcss"
 import tailwind from "@tailwindcss/postcss"
@@ -16,6 +17,16 @@ export async function startFixtureServer({
   service = false,
 }) {
   const folder = directory
+  const require = createRequire(import.meta.url)
+  const shim = join(folder, "process-shim.js")
+  // Match Next's browser ProvidePlugin; never supply the Node process/env.
+  await writeFile(
+    shim,
+    "export { default as process } from " +
+      JSON.stringify(require.resolve("next/dist/build/polyfills/process")) +
+      ";",
+    { mode: 0o600 }
+  )
   await build({
     entryPoints: [
       join(
@@ -25,13 +36,20 @@ export async function startFixtureServer({
           : "test/browser-fixture.tsx"
       ),
     ],
+    inject: [shim],
     bundle: true,
     platform: "browser",
     format: "esm",
     jsx: "automatic",
     outfile: join(folder, "fixture.js"),
     logLevel: "silent",
-    define: { "process.env.NODE_ENV": '"production"' },
+    define: {
+      global: "globalThis",
+      // NCC browser shims assign their unused require.ab from webpack's root dirname.
+      __dirname: '"/"',
+      "process.env.NODE_ENV": '"production"',
+      "process.env.NEXT_RUNTIME": '""',
+    },
     plugins: [
       {
         name: "fixture-next-link",
@@ -112,9 +130,21 @@ export async function startFixtureServer({
           (socket) => new Promise((resolve) => socket.once("close", resolve))
         )
         for (const socket of sockets) socket.destroy()
-        await closed
-        await Promise.all(exits)
-        return !server.listening && sockets.size === 0
+        let timer
+        try {
+          return await Promise.race([
+            (async () => {
+              await closed
+              await Promise.all(exits)
+              return !server.listening && sockets.size === 0
+            })(),
+            new Promise((resolve) => {
+              timer = setTimeout(() => resolve(false), 5000)
+            }),
+          ])
+        } finally {
+          clearTimeout(timer)
+        }
       })())
     },
   }

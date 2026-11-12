@@ -83,6 +83,7 @@ export function run(
     stage = "command",
     timeoutMs = 30000,
     maxBytes = 8 * 1024 * 1024,
+    terminationGraceMs = 1000,
     signal,
     acceptExitCodes = [0],
   } = {}
@@ -156,7 +157,10 @@ export function run(
       failed = code
       killOwned("SIGTERM")
       // Never wait indefinitely for a descendant holding an inherited pipe.
-      killTimer = setTimeout(() => finish(new GateFailure(stage, failed)), 1000)
+      killTimer = setTimeout(
+        () => finish(new GateFailure(stage, failed)),
+        terminationGraceMs
+      )
     }
     const abort = () => stop("interrupted")
     const capture = (chunk, error) => {

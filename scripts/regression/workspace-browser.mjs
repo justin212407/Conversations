@@ -1,3 +1,4 @@
+import { decodeTrace, serviceSpans } from "./trace.mjs"
 import { URL } from "node:url"
 import assert from "node:assert/strict"
 import { mkdir } from "node:fs/promises"
@@ -100,13 +101,19 @@ export async function verifyWorkspaceBrowser(
     owned.credentials.realtime,
     "PRIVATE_PROVIDER_EXCEPTION_CANARY",
   ])
+  const browserValues = new Set()
+  const rememberBrowser = (value) => {
+    privateValues.add(value)
+    browserValues.add(value)
+  }
+  let documentSocketStart = 0
   const sockets = [],
     closedSockets = new Set(),
     frames = []
   const canary = "PRIVATE_BROWSER_TRANSCRIPT_" + randomUUID()
-  privateValues.add(canary)
+  rememberBrowser(canary)
   const titleCanary = "PRIVATE_BROWSER_TITLE_" + randomUUID()
-  privateValues.add(titleCanary)
+  rememberBrowser(titleCanary)
   await runtime.context.exposeBinding(
     "regressionToken",
     async (_source, actor, revision) => {
@@ -138,7 +145,7 @@ export async function verifyWorkspaceBrowser(
         extra,
         actor === "wrongazp" ? "http://untrusted.invalid" : service.origin
       )
-      privateValues.add(jwt)
+      rememberBrowser(jwt)
       return jwt
     }
   )
@@ -182,7 +189,7 @@ export async function verifyWorkspaceBrowser(
   page.on("websocket", (socket) => {
     sockets.push(socket)
     const ticket = new URL(socket.url()).searchParams.get("ticket")
-    if (ticket) privateValues.add(ticket)
+    if (ticket) rememberBrowser(ticket)
     socket.on("close", () => closedSockets.add(socket))
     socket.on("framereceived", (event) => {
       try {
@@ -198,6 +205,7 @@ export async function verifyWorkspaceBrowser(
     const previous = await page
       .evaluate(() => globalThis.serviceFixture?.documentId)
       .catch(() => null)
+    documentSocketStart = sockets.length
     if (path)
       await page.goto(service.origin + path, { waitUntil: "domcontentloaded" })
     else await page.reload({ waitUntil: "domcontentloaded" })
@@ -218,6 +226,34 @@ export async function verifyWorkspaceBrowser(
         s.phase === "live" && !s.sending && !s.conversation?.activeOperation
       )
     })
+  }
+  async function completed(content, assistantId) {
+    await page.waitForFunction(
+      ({ content, assistantId }) => {
+        const messages = globalThis.serviceFixture.displayed()
+        const user = messages.find(
+          (row) => row.role === "user" && row.content === content
+        )
+        return (
+          user &&
+          messages.some(
+            (row) =>
+              row.role === "assistant" &&
+              row.sequence > user.sequence &&
+              row.state === "completed" &&
+              (!assistantId || row.id === assistantId)
+          )
+        )
+      },
+      { content, assistantId }
+    )
+    await settled()
+    const answer = (await rows())
+      .filter((row) => row.role === "assistant")
+      .at(-1)
+    const article = page.locator('article[data-message-id="' + answer.id + '"]')
+    await article.waitFor()
+    assert.ok((await article.innerText()).includes(answer.content))
   }
   async function rows() {
     return page.evaluate(() => globalThis.serviceFixture.displayed())
@@ -282,7 +318,7 @@ export async function verifyWorkspaceBrowser(
         .length,
       1
     )
-    privateValues.add(last.content)
+    rememberBrowser(last.content)
   }
   await fresh("/conversations")
   stage("browser-text-stream")
@@ -309,7 +345,8 @@ export async function verifyWorkspaceBrowser(
       .displayed()
       .some((row) => row.role === "assistant" && row.state === "streaming")
   )
-  await settled()
+  await page.getByText("Responding…", { exact: true }).waitFor()
+  await completed(canary)
   let messages = await rows()
   assertAnswer(messages, canary)
   assert.ok(frames.some((frame) => frame.type === "message.snapshot"))
@@ -338,7 +375,7 @@ export async function verifyWorkspaceBrowser(
     first.map((row) => row.id)
   )
   await send("Continue " + canary)
-  await settled()
+  await completed("Continue " + canary)
   messages = await rows()
   assert.equal(messages.length, 4)
   assertAnswer(messages, "Continue " + canary)
@@ -353,11 +390,11 @@ export async function verifyWorkspaceBrowser(
   const beforeRetry = await rows(),
     failed = beforeRetry.find((row) => row.state === "failed")
   assert.ok(failed.operationId)
-  privateValues.add(failed.content)
+  rememberBrowser(failed.content)
   await page
     .getByRole("button", { name: "Retry response", exact: true })
     .click()
-  await settled()
+  await completed("REGRESSION_FAIL_ONCE:" + canary)
   messages = await rows()
   assertAnswer(messages, "REGRESSION_FAIL_ONCE:" + canary)
   assert.equal(messages.filter((row) => row.role === "user").length, 3)
@@ -456,7 +493,7 @@ export async function verifyWorkspaceBrowser(
     lost.request.clientRequestId
   )
   await fresh()
-  await settled()
+  await completed(lost.request.content, lost.admission.assistantMessageId)
   assert.equal(
     (await state()).intent.clientRequestId,
     lost.request.clientRequestId
@@ -502,7 +539,7 @@ export async function verifyWorkspaceBrowser(
     1
   )
   await assertStoredAdmission(lost.admission, lost.request, true)
-  privateValues.add(completedLost.content)
+  rememberBrowser(completedLost.content)
   checks.committedAckReloadReplay = true
   checks.sameUserRefreshPreservesIntent = true
   stage("browser-real-reconnect")
@@ -581,7 +618,10 @@ export async function verifyWorkspaceBrowser(
   bobGate = new Promise((resolve) => {
     bobResolve = resolve
   })
-  const priorSockets = [...sockets]
+  const priorSockets = sockets
+    .slice(documentSocketStart)
+    .filter((socket) => !socket.isClosed())
+  assert.ok(priorSockets.length > 0)
   await page.evaluate(() => globalThis.serviceFixture.identity("bob"))
   await page.waitForFunction(
     () => globalThis.serviceFixture.store !== globalThis.retainedStore
@@ -593,6 +633,27 @@ export async function verifyWorkspaceBrowser(
   assert.equal(
     await page.evaluate(() => globalThis.retainedStore.snapshot().accountId),
     null
+  )
+  await until(
+    "browser-old-socket-stopped",
+    () =>
+      priorSockets.every(
+        (socket) => socket.isClosed() && closedSockets.has(socket)
+      ),
+    { signal }
+  )
+  await until(
+    "browser-old-connection-gauge",
+    async () => {
+      const response = await boundedFetch(rtUrl + "/metrics", {
+        headers: { authorization: "Bearer " + owned.credentials.metrics },
+      })
+      assert.equal(response.status, 200)
+      return (await response.text())
+        .split("\n")
+        .includes('conversations_active_connections{service="realtime"} 0')
+    },
+    { signal }
   )
   bobResolve()
   bobGate = null
@@ -617,11 +678,6 @@ export async function verifyWorkspaceBrowser(
     await page.evaluate(() => globalThis.retainedStore.snapshot().accountId),
     null
   )
-  await until(
-    "browser-old-socket-stopped",
-    () => priorSockets.every((socket) => closedSockets.has(socket)),
-    { signal }
-  )
   await unresolved.remove()
   await page.evaluate(() => globalThis.serviceFixture.identity("expired"))
   await page.waitForFunction(
@@ -629,7 +685,10 @@ export async function verifyWorkspaceBrowser(
   )
   assert.equal((await rows()).length, 0)
   await page.evaluate(() => globalThis.serviceFixture.identity("alice"))
-  await settled()
+  await completed(
+    unresolved.request.content,
+    unresolved.admission.assistantMessageId
+  )
   assert.equal(
     (await state()).intent.clientRequestId,
     unresolved.request.clientRequestId
@@ -643,11 +702,11 @@ export async function verifyWorkspaceBrowser(
   checks.ownershipAndSessionScope = true
   stage("browser-diagnostics")
   messages = await rows()
-  for (const row of messages) if (row.content) privateValues.add(row.content)
+  for (const row of messages) if (row.content) rememberBrowser(row.content)
   const browserDiagnostics = await page.evaluate(
     ({ canary, privateValues }) =>
       globalThis.serviceFixture.diagnostics(canary, privateValues),
-    { canary, privateValues: [...privateValues] }
+    { canary, privateValues: [...browserValues] }
   )
   assert.equal(browserDiagnostics.enabledEnvelopes, 4)
   assert.equal(browserDiagnostics.disabledEnvelopes, 0)
@@ -671,12 +730,28 @@ export async function verifyWorkspaceBrowser(
         "http://127.0.0.1:" + owned.ports.jaeger + "/api/v3/traces/" + traceId
       )
       if (!response.ok) return false
-      const raw = await response.text()
-      return raw.includes("provider.generate") ? raw : false
+      const parsed = decodeTrace(await response.text(), "browser-jaeger-format")
+      const providers = serviceSpans(parsed, "conversations-worker").filter(
+        (span) => span.name === "provider.generate"
+      )
+      const wanted = messages
+        .filter((row) => row.role === "assistant")
+        .map((row) => row.operationId)
+      return wanted.every((id) =>
+        providers.some((span) =>
+          span.attributes?.some(
+            (attribute) =>
+              attribute.key === "operationId" &&
+              attribute.value?.stringValue === id
+          )
+        )
+      )
+        ? parsed
+        : false
     },
     { signal, timeoutMs: 60000 }
   )
-  diagnostics += trace
+  diagnostics += trace.raw
   for (const value of privateValues) assert.ok(!diagnostics.includes(value))
   await assertStoredAdmission(unresolved.admission, unresolved.request, true)
   assert.equal(await providerCount(), 6)

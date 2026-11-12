@@ -12,6 +12,9 @@ export async function main(args = process.argv.slice(2)) {
       return verifier.verifyWorkspaceBrowser
     },
     {
+      timeoutMs: args.some((value) => value.startsWith("--fault=browser-"))
+        ? 5 * 60 * 1000
+        : 25 * 60 * 1000,
       prepareRun: () => prepare({ browser: true }),
       beforeStart: (owned, context) =>
         verifier.prepareWorkspaceBrowser(owned, context),

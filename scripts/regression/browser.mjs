@@ -1,3 +1,5 @@
+import { createConnection } from "node:net"
+import { setTimeout as delay } from "node:timers/promises"
 import { URL } from "node:url"
 import { createRequire } from "node:module"
 import { tmpdir } from "node:os"
@@ -26,11 +28,48 @@ export async function bounded(work, milliseconds = 5000) {
   }
 }
 export const processExited = (child) =>
-  child && (child.exitCode !== null || child.signalCode !== null)
+  child &&
+  (Number.isInteger(child.exitCode) || typeof child.signalCode === "string")
+
+export async function controlListenerClosed(endpoint, timeout = 5000) {
+  let url
+  try {
+    url = new URL(endpoint)
+    if (
+      url.protocol !== "ws:" ||
+      !["127.0.0.1", "[::1]"].includes(url.hostname) ||
+      !url.port ||
+      url.username ||
+      url.password
+    )
+      return false
+  } catch {
+    return false
+  }
+  const until = Date.now() + timeout
+  while (Date.now() < until) {
+    const closed = await new Promise((resolve) => {
+      const socket = createConnection({
+        host: url.hostname.replace(/^\[|\]$/g, ""),
+        port: Number(url.port),
+      })
+      const finish = (value) => {
+        socket.destroy()
+        resolve(value)
+      }
+      socket.once("connect", () => finish(false))
+      socket.once("error", (error) => finish(error.code === "ECONNREFUSED"))
+      socket.setTimeout(100, () => finish(false))
+    })
+    if (closed) return true
+    await delay(20)
+  }
+  return false
+}
 
 export async function closeBrowser(
   { server, browser, profile },
-  { timeout = 5000 } = {}
+  { timeout = 5000, verifyControl = controlListenerClosed } = {}
 ) {
   if (!server) return false
   const child = server.process()
@@ -54,13 +93,14 @@ export async function closeBrowser(
     }
   }
   if (!processExited(child) || browser?.isConnected()) return false
+  const controlClosed = await verifyControl(server.wsEndpoint?.())
   if (!profile) return false
   try {
     await rm(profile, { recursive: true, force: true })
     await access(profile)
     return false
   } catch (error) {
-    return error.code === "ENOENT"
+    return error.code === "ENOENT" && controlClosed
   }
 }
 
