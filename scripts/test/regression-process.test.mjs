@@ -1,5 +1,8 @@
 import assert from "node:assert/strict"
 import { test } from "node:test"
+import childProcess from "node:child_process"
+import { syncBuiltinESMExports } from "node:module"
+import { setTimeout as delay } from "node:timers/promises"
 import { access, readFile, mkdir, symlink } from "node:fs/promises"
 import { createServer } from "node:net"
 import { URL } from "node:url"
@@ -10,7 +13,76 @@ import {
   serveFixture,
   startFixtureServer,
 } from "../../apps/web/test/browser-server.mjs"
-import { controlListenerClosed } from "../regression/browser.mjs"
+import { bounded, controlListenerClosed } from "../regression/browser.mjs"
+
+test("concurrent preparation starts retain exactly one child and one outcome owner", async () => {
+  const owned = await privateRunDirectory()
+  const children = [],
+    releases = []
+  const original = childProcess.spawn
+  // Preserve real spawning, retaining public handles for cleanup of the failing
+  // old implementation, which overwrites its first child's ownership slots.
+  childProcess.spawn = (...args) => {
+    const child = original(...args)
+    children.push(child)
+    return child
+  }
+  syncBuiltinESMExports()
+  const leased = {
+    ...owned,
+    holdWriter() {
+      const release = owned.holdWriter()
+      releases.push(release)
+      return release
+    },
+  }
+  const owner = ownedProcess(leased, { timeoutMs: 5000 })
+  try {
+    const runs = [0, 1].map((index) =>
+      owner
+        .run(process.execPath, [
+          "--eval",
+          `require('node:fs').writeFileSync(${JSON.stringify(join(owned.directory, "writer-"))}+${index},String(process.pid));setTimeout(()=>process.disconnect?.(),100)`,
+        ])
+        .then(
+          () => ({ fulfilled: true }),
+          (error) => ({ code: error.code })
+        )
+    )
+    const outcomes = await bounded(() => Promise.all(runs), 4000)
+    assert.equal(outcomes.filter((result) => result.fulfilled).length, 1)
+    assert.equal(
+      outcomes.filter((result) => result.code === "interrupted").length,
+      1
+    )
+    assert.equal(children.length, 1)
+    assert.equal(releases.length, 1)
+  } finally {
+    childProcess.spawn = original
+    syncBuiltinESMExports()
+    await owner.cleanup()
+    for (const child of children) {
+      if (!child.pid) continue
+      if (child.exitCode === null && child.signalCode === null)
+        child.kill("SIGKILL")
+      let quiet = false
+      for (let attempt = 0; attempt < 100; attempt++) {
+        if (await groupQuiet(child.pid)) {
+          quiet = true
+          break
+        }
+        await delay(20)
+      }
+      assert.equal(
+        quiet,
+        true,
+        "Actual preparation child must exit before test recovery"
+      )
+    }
+    for (const release of releases) release()
+    await owned.remove()
+  }
+})
 
 test("concurrent cleanup during preparation preflight prevents a later writer spawn", async () => {
   const owned = await privateRunDirectory()
