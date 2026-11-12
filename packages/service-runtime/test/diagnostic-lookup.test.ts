@@ -10,6 +10,7 @@ import {
   type LookupOptions,
   type LookupAddress,
 } from "node:dns"
+import { setImmediate } from "node:timers"
 import { setTimeout as delay } from "node:timers/promises"
 import {
   DiagnosticLookup,
@@ -248,3 +249,56 @@ test("strict bounded IPC rejects mixed/error/address and oversized invalid paylo
   ])
     assert.equal(lookupMessage(value), undefined)
 })
+
+test(
+  "a delayed valid response adds no wait outside the existing termination grace",
+  { timeout: 5000 },
+  async (t) => {
+    t.mock.timers.enable({ apis: ["setTimeout"] })
+    let child: ChildProcess | undefined,
+      original: ChildProcess["kill"] | undefined,
+      received: () => void = () => {}
+    const message = new Promise<void>((resolve) => {
+        received = resolve
+      }),
+      signals: string[] = []
+    const owner = new DiagnosticLookup(
+      configuration("valid-term-resistant", (value) => {
+        child = value
+        original = value.kill.bind(value)
+        value.on("message", () => received())
+        value.kill = (signal) => {
+          if (typeof signal === "string") signals.push(signal)
+          return original!(signal)
+        }
+      })
+    )
+    const answer = resolve(owner, "localhost", {})
+    try {
+      await message
+      await new Promise<void>((accept) => setImmediate(accept))
+      // Parent timers are frozen; an unaccounted20ms natural-exit wait would leave
+      // the child unsignalled here. The child itself used actual delayed IPC.
+      assert.deepEqual(signals, ["SIGTERM"])
+      t.mock.timers.tick(50)
+      assert.deepEqual(await answer, { address: "127.0.0.1", family: 4 })
+      assert.deepEqual(signals, ["SIGTERM", "SIGKILL"])
+      assert.equal(child?.signalCode, "SIGKILL")
+    } finally {
+      t.mock.timers.reset()
+      if (
+        child &&
+        child.exitCode === null &&
+        child.signalCode === null &&
+        original
+      ) {
+        const exited = new Promise<void>((accept) =>
+          child!.once("exit", () => accept())
+        )
+        original("SIGKILL")
+        await exited
+      }
+      await owner.close()
+    }
+  }
+)
