@@ -1,4 +1,6 @@
 import { z } from "zod"
+import { uuidSchema, integerSchema, utcTimestampSchema } from "./validation.js"
+export { uuidSchema, integerSchema, utcTimestampSchema } from "./validation.js"
 
 export const serviceNameSchema = z.enum(["api", "worker", "realtime"])
 export type ServiceName = z.infer<typeof serviceNameSchema>
@@ -14,8 +16,8 @@ export const FOUNDATION_QUEUE = "conversations-foundation"
 export const probeJobSchema = z
   .object({
     version: z.literal(1),
-    probeId: z.string().uuid(),
-    sentAt: z.string().datetime(),
+    probeId: uuidSchema,
+    sentAt: utcTimestampSchema,
   })
   .strict()
 export type ProbeJob = z.infer<typeof probeJobSchema>
@@ -81,10 +83,10 @@ export type GenerationFailure = z.infer<typeof generationFailureSchema>
 export const textGenerationJobSchema = z
   .object({
     version: z.literal(1),
-    operationId: z.string().uuid(),
-    accountId: z.string().uuid(),
-    conversationId: z.string().uuid(),
-    inputMessageId: z.string().uuid(),
+    operationId: uuidSchema,
+    accountId: uuidSchema,
+    conversationId: uuidSchema,
+    inputMessageId: uuidSchema,
     correlation: requestCorrelationSchema,
   })
   .strict()
@@ -92,9 +94,9 @@ export type TextGenerationJob = z.infer<typeof textGenerationJobSchema>
 
 export const messageDataSchema = z
   .object({
-    id: z.string().uuid(),
-    conversationId: z.string().uuid(),
-    sequence: z.number().int().positive(),
+    id: uuidSchema,
+    conversationId: uuidSchema,
+    sequence: integerSchema.positive(),
     role: z.enum(["user", "assistant"]),
     modality: z.enum(["text", "voice"]),
     content: z.string(),
@@ -105,19 +107,19 @@ export const messageDataSchema = z
       "failed",
       "interrupted",
     ]),
-    createdAt: z.string().datetime(),
-    updatedAt: z.string().datetime(),
-    operationId: z.string().uuid().nullable().optional(),
+    createdAt: utcTimestampSchema,
+    updatedAt: utcTimestampSchema,
+    operationId: uuidSchema.nullable().optional(),
     failureCode: generationFailureSchema.nullable().optional(),
   })
   .strict()
 export type MessageData = z.infer<typeof messageDataSchema>
 export const operationAdmissionSchema = z
   .object({
-    operationId: z.string().uuid(),
-    conversationId: z.string().uuid(),
-    userMessageId: z.string().uuid().nullable(),
-    assistantMessageId: z.string().uuid().nullable(),
+    operationId: uuidSchema,
+    conversationId: uuidSchema,
+    userMessageId: uuidSchema.nullable(),
+    assistantMessageId: uuidSchema.nullable(),
     status: z.enum([
       "pending",
       "running",
@@ -125,7 +127,7 @@ export const operationAdmissionSchema = z
       "failed",
       "interrupted",
     ]),
-    expiresAt: z.string().datetime(),
+    expiresAt: utcTimestampSchema,
     failureCode: generationFailureSchema.nullable().optional(),
   })
   .strict()
@@ -134,16 +136,16 @@ export type OperationAdmission = z.infer<typeof operationAdmissionSchema>
 const envelope = z
   .object({
     version: z.literal(1),
-    eventId: z.string().uuid(),
-    conversationId: z.string().uuid(),
-    sequence: z.number().int().positive(),
-    occurredAt: z.string().datetime(),
+    eventId: uuidSchema,
+    conversationId: uuidSchema,
+    sequence: integerSchema.positive(),
+    occurredAt: utcTimestampSchema,
     correlation: requestCorrelationSchema.optional(),
   })
   .strict()
 const conversationPayload = z
   .object({
-    conversationId: z.string().uuid(),
+    conversationId: uuidSchema,
     title: z.string().min(1),
     status: z.enum(["active", "archived", "deleted"]),
   })
@@ -156,7 +158,7 @@ export const domainEventSchema = z
   .discriminatedUnion("type", [
     envelope.extend({
       type: z.literal("conversation.created"),
-      payload: z.object({ conversationId: z.string().uuid() }).strict(),
+      payload: z.object({ conversationId: uuidSchema }).strict(),
     }),
     envelope.extend({
       type: z.literal("conversation.updated"),
@@ -240,18 +242,18 @@ export type DomainEvent = z.infer<typeof domainEventSchema>
 export const provisionalMessageSnapshotSchema = z
   .object({
     version: z.literal(1),
-    eventId: z.string().uuid(),
+    eventId: uuidSchema,
     type: z.literal("message.snapshot"),
-    conversationId: z.string().uuid(),
-    sequence: z.number().int().nonnegative(),
-    occurredAt: z.string().datetime(),
+    conversationId: uuidSchema,
+    sequence: integerSchema.nonnegative(),
+    occurredAt: utcTimestampSchema,
     correlation: requestCorrelationSchema.optional(),
     payload: z
       .object({
-        messageId: z.string().uuid(),
-        operationId: z.string().uuid(),
-        streamId: z.string().uuid(),
-        revision: z.number().int().positive(),
+        messageId: uuidSchema,
+        operationId: uuidSchema,
+        streamId: uuidSchema,
+        revision: integerSchema.positive(),
         state: z.literal("streaming"),
         content: z
           .string()
@@ -264,13 +266,13 @@ export type ProvisionalMessageSnapshot = z.infer<
   typeof provisionalMessageSnapshotSchema
 >
 export const provisionalChannel = (conversationId: string) => {
-  if (!z.string().uuid().safeParse(conversationId).success)
+  if (!uuidSchema.safeParse(conversationId).success)
     throw new Error("Invalid conversation identity")
   return "conversations:snapshots:" + conversationId.toLowerCase()
 }
 
 export const durableChannel = (conversationId: string) => {
-  if (!z.string().uuid().safeParse(conversationId).success)
+  if (!uuidSchema.safeParse(conversationId).success)
     throw new Error("Invalid conversation identity")
   return "conversations:events:" + conversationId.toLowerCase()
 }
@@ -283,28 +285,28 @@ export const realtimeServerControlSchema = z
   .object({
     version: z.literal(1),
     type: z.enum(["connection.ready", "connection.unsubscribed"]),
-    connectionId: z.string().uuid(),
-    conversationId: z.string().uuid(),
-    expiresAt: z.string().datetime(),
+    connectionId: uuidSchema,
+    conversationId: uuidSchema,
+    expiresAt: utcTimestampSchema,
   })
   .strict()
 export const realtimeGrantSchema = z
   .object({
-    connectionId: z.string().uuid(),
-    accountId: z.string().uuid(),
-    conversationId: z.string().uuid(),
-    expiresAt: z.string().datetime(),
+    connectionId: uuidSchema,
+    accountId: uuidSchema,
+    conversationId: uuidSchema,
+    expiresAt: utcTimestampSchema,
   })
   .strict()
 export const conversationSnapshotSchema = z
   .object({
     conversation: z
       .object({
-        id: z.string().uuid(),
+        id: uuidSchema,
         title: z.string(),
         status: z.enum(["active", "archived"]),
-        createdAt: z.string().datetime(),
-        updatedAt: z.string().datetime(),
+        createdAt: utcTimestampSchema,
+        updatedAt: utcTimestampSchema,
       })
       .strict(),
     activeOperation: operationAdmissionSchema.nullable(),
@@ -314,7 +316,7 @@ export const conversationSnapshotSchema = z
         nextCursor: z.string().nullable(),
       })
       .strict(),
-    checkpoint: z.number().int().nonnegative(),
+    checkpoint: integerSchema.nonnegative(),
   })
   .strict()
   .superRefine((snapshot, ctx) => {

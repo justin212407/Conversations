@@ -1,6 +1,7 @@
 import assert from "node:assert/strict"
 import { test } from "node:test"
 import { setTimeout as delay } from "node:timers/promises"
+import { loadRealtimeConfig } from "../src/realtime-config.js"
 import { loadConfig, redisConnectionOptions } from "../src/config.js"
 import { createHealthServer } from "../src/health.js"
 
@@ -203,4 +204,78 @@ test("shutdown stops job intake before draining an active HTTP request", async (
   }
   assert.equal((await response).statusCode, 503)
   assert.equal(resourcesClosed, true)
+})
+
+test("patched URL output normalization retains effective connection semantics and guards", () => {
+  const ordinary = loadConfig("api", environment)
+  const config = loadConfig("api", {
+    ...environment,
+    REDIS_URL: " \tredis://us\ner:p%40ss@cache.example:6380/2\r ",
+    DATABASE_URL: " \npostgresql://test:test@db.example:5432/test\t ",
+    OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:
+      " \thttps://traces.example/v1/traces\r ",
+  })
+  assert.equal(ordinary.REDIS_URL, environment.REDIS_URL)
+  assert.equal(config.REDIS_URL, "redis://user:p%40ss@cache.example:6380/2")
+  assert.deepEqual(redisConnectionOptions(config.REDIS_URL), {
+    host: "cache.example",
+    port: 6380,
+    username: "user",
+    password: "p@ss",
+    db: 2,
+  })
+  const database = new URL(config.DATABASE_URL!)
+  assert.equal(database.hostname, "db.example")
+  assert.equal(database.username, "test")
+  assert.equal(database.password, "test")
+  assert.equal(database.protocol, "postgresql:")
+  assert.equal(
+    config.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
+    "https://traces.example/v1/traces"
+  )
+  for (const value of [
+    " \thttps://cache.example/2 ",
+    "redis://cache.example/not-a-db",
+  ]) {
+    assert.throws(
+      () => loadConfig("api", { ...environment, REDIS_URL: value }),
+      /REDIS_URL/
+    )
+  }
+  for (const endpoint of [
+    " \nhttp://traces.example/v1/traces ",
+    "https://user:secret@traces.example/v1/traces",
+    "https://traces.example/v1/traces?secret=token",
+  ]) {
+    assert.throws(
+      () =>
+        loadConfig("api", {
+          ...environment,
+          NODE_ENV: "production",
+          OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: endpoint,
+        }),
+      (error) =>
+        error instanceof Error &&
+        error.message ===
+          "Invalid service configuration: OTEL_EXPORTER_OTLP_TRACES_ENDPOINT"
+    )
+  }
+  const realtime = loadRealtimeConfig({
+    REALTIME_PUBLIC_URL: " \twss://socket.example/v1/connect\n ",
+    REALTIME_API_URL: " \rhttps://api.example\t ",
+  })
+  assert.equal(new URL(realtime.REALTIME_PUBLIC_URL).hostname, "socket.example")
+  assert.equal(realtime.REALTIME_PUBLIC_URL, "wss://socket.example/v1/connect")
+  assert.equal(realtime.REALTIME_API_URL, "https://api.example")
+  assert.throws(
+    () =>
+      loadRealtimeConfig({
+        NODE_ENV: "production",
+        REALTIME_INTERNAL_SECRET: "a".repeat(43),
+        CLERK_AUTHORIZED_PARTIES: "https://workspace.example",
+        REALTIME_PUBLIC_URL: " ws://socket.example/v1/connect ",
+        REALTIME_API_URL: "https://api.example",
+      }),
+    /Invalid realtime service configuration/
+  )
 })

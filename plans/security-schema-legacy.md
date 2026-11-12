@@ -31,6 +31,8 @@ The patched validation/legacy compatibility and complete audit acceptance of [de
 7. Run frozen installation, the current service/workspace/unit/integration/process/container/browser/UI/widget gates appropriate to affected consumers, plus offline legacy compiler/bundle/data-shape and AI/schema/provider-conversion fixtures. Use no root.env/live services; providers are deterministic test substitutes. Document inherited offline failures and reject new regressions. Serialize heavy checks and verify owned resource cleanup.
 8. Require a valid fresh full-workspace audit with zero high/critical findings and verified shipped-artifact remediation before complete dependency-security acceptance. Registry failure is nonzero, not a waiver. If any residual cannot be safely removed, keep #25/this criterion open with exact owner/evidence. Freeze/publish one scoped PR; root independently reviews/fixes/merges, never this agent. Maintain the central ignored journal throughout.
 
+The exact declaration-only pnpm patch for Agent 0.2.12 reuses NonNullable<Config["languageModel"]> in its required model field, avoiding the SDK’s duplicated union expansion while preserving provider and required-option guards. Positive/negative offline compiler fixtures and unchanged runtime JS evidence accompany it.
+
 ## Validation
 
 - [ ] Both exact residual advisories from security-dependencies (Zod 3.25.76 across ten importers and AI 4/jsondiffpatch 0.6.0 in widget/backend) are remediated with all affected owners retained in the audit graph.
@@ -50,7 +52,7 @@ Registry peers establish a candidate family, not component data compatibility. A
 
 Compatible stage [PR #36](https://github.com/justin212407/Conversations/pull/36) explicitly transfers the two still-failing high findings in the [exact residual ledger](../docs/dependency-security-stage-1.md). PR #36 actually merged as 55f4258 before this work began; the prior head is confirmed on main. Zod owners are apps/api, apps/realtime, apps/web, apps/widget, apps/worker, packages/backend, packages/database, packages/service-runtime, packages/shared and packages/ui; jsondiffpatch owners are apps/widget and packages/backend. The preceding stage does not waive these findings or final #25 acceptance.
 
-Planned companion authored before implementation, as requested. It is deliberately downstream of the compatible stage's merge. Candidate version evidence comes from primary npm registry metadata and the relevant Zod/jsondiffpatch advisories; final selected resolutions and compatibility results must be recorded during implementation.
+The companion plan was authored before implementation and began only after PR #36 actually merged; its accepted concrete mapping was rebased onto PR #37's actual merge before package/source edits. The [implemented mapping](../docs/dependency-security-schema-mapping.md) and [verification record](../docs/dependency-security-schema-evidence.md) now record exact resolutions, reviewed compatibility corrections and actual evidence. Final scoped acceptance remains pending the unchecked validations above.
 
 ## Follow-ups
 

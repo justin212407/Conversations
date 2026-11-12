@@ -1,0 +1,35 @@
+diff --git a/dist/client/index.d.ts b/dist/client/index.d.ts
+index 53799c633db89e85b87a0335a6ee1f78d6389a7f..90518495f1d8aa59e902956f52ec3279464a44d7 100644
+--- a/dist/client/index.d.ts
++++ b/dist/client/index.d.ts
+@@ -60,7 +60,7 @@ CustomCtx extends object = object, AgentTools extends ToolSet = any> {
+          * const myAgent = new Agent(components.agent, {
+          *   languageModel: openai.chat("gpt-4o-mini"),
+          */
+-        languageModel: LanguageModel;
++        languageModel: NonNullable<Config["languageModel"]>;
+         /**
+          * The default system prompt to put in each request.
+          * Override per-prompt by passing the "system" parameter.
+@@ -92,7 +92,7 @@ CustomCtx extends object = object, AgentTools extends ToolSet = any> {
+          * const myAgent = new Agent(components.agent, {
+          *   languageModel: openai.chat("gpt-4o-mini"),
+          */
+-        languageModel: LanguageModel;
++        languageModel: NonNullable<Config["languageModel"]>;
+         /**
+          * The default system prompt to put in each request.
+          * Override per-prompt by passing the "system" parameter.
+diff --git a/src/client/index.ts b/src/client/index.ts
+index 71d307b63f05921d362be87c435f111a5d169632..f6de7c85a6603d75d1e805b4beba98ba56c43d82 100644
+--- a/src/client/index.ts
++++ b/src/client/index.ts
+@@ -232,7 +232,7 @@ export class Agent<
+        * const myAgent = new Agent(components.agent, {
+        *   languageModel: openai.chat("gpt-4o-mini"),
+        */
+-      languageModel: LanguageModel;
++      languageModel: NonNullable<Config["languageModel"]>;
+       /**
+        * The default system prompt to put in each request.
+        * Override per-prompt by passing the "system" parameter.

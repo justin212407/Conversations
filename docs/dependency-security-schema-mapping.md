@@ -1,6 +1,6 @@
 # Schema and legacy AI compatibility mapping
 
-This proposal implements the accepted second security stage after PR #36 merged as 55f4258. Repository package/source migration remains gated on root acceptance of this concrete mapping. Clean frozen installation passed first; all observations below use published artifacts or isolated synthetic fixtures, with no private application configuration, provider request, Convex deployment or data access.
+This accepted mapping is implemented in the second security stage after PR #36 merged as 55f4258 and PR #37 merged as 6234559. Root accepted the concrete provider/storage/recovery mapping before repository migration, then separately accepted URL normalization, the exact Undici edge and the declaration-only Agent patch. A clean frozen install and the portable compatibility gates now pass. The observations below use published artifacts or isolated synthetic fixtures, with no private application configuration, provider request, Convex deployment or data access. Final isolated lifecycle/browser evidence is tracked in the active plan and companion evidence record.
 
 ## Selected supported family
 
@@ -15,7 +15,7 @@ This proposal implements the accepted second security stage after PR #36 merged 
 
 All six downloaded artifacts passed their published SHA-512 integrity checks. A separate private no-scripts install runs this exact coherent family. Existing Convex 1.42.0, helpers 0.1.119 and React 19.2.4 remain supported; helper Zod peers already permit v4. AI 5's published graph removes the AI 4/jsondiffpatch consumer through an upstream-supported replacement, with actual synthetic generation/stream verification. Keep root/services TypeScript 5.9.3 and backend/math 6.0.3 unchanged.
 
-Provider-utils retains unused v3 compatibility dispatch/conversion support. This proposal constructs application/provider schemas on patched v4 and tests the published v4 conversion path; it does not use zod/v3 as a replacement parser. All remaining graph versions and actual parser paths still require final audit/test evidence.
+Provider-utils retains unused v3 compatibility dispatch/conversion support. The implementation constructs application/provider schemas on patched v4 and tests the published v4 conversion path; it does not use zod/v3 as a replacement parser. The fresh complete-workspace scan passes with zero high/critical findings; lower severities remain visible. Portable tests exercise the actual patched parser and conversion paths.
 
 ## Actual component storage proof
 
@@ -40,7 +40,7 @@ Existing deprecated message/thread fields remain accepted. New stream format and
 
 Eight synthetic old documents exercise repeated identical user messages, assistant/tool/result/final grouping, failed, pending-without-message and empty assistant records. Seven records containing a message convert through the candidate published model-message validator/serializer. Generation and streaming both return the expected synthetic output through the actual AI 5/mock-model interfaces. Published provider-utils converts a strict v4 schema, accepts its valid fixture and rejects an unknown field. A clean-environment rerun blocks all network access; observed network/provider requests are zero.
 
-The old display helper emits the grouped assistant ID final with 11 concatenated text characters; the new upstream helper emits ID call with 12 characters after injecting a space. Repeated identical user IDs remain distinct in both. The proposed display seam preserves the old projection exactly instead of accepting those implicit UI changes. Regression fixtures will cover tool groups, parts/metadata, failure/streaming state, empty rows and ordering against the old baseline.
+The old display helper emits the grouped assistant ID final with 11 concatenated text characters; the new upstream helper emits ID call with 12 characters after injecting a space. Repeated identical user IDs remain distinct in both. The application-owned display seam preserves the old projection exactly instead of accepting those implicit UI changes. Regression fixtures cover tool groups, parts/metadata, failure/streaming state, empty rows and ordering against the old baseline.
 
 A 39-case public primitive comparison finds five differences requiring preservation: two non-RFC UUID spellings, two integers above the safe-integer interval and one valid timestamp without seconds. Sampled valid/invalid email and URL forms match; actual configuration/default/coercion and form integration still require implementation gates. Preserve unknown-field rejection and public error shapes throughout.
 
@@ -52,7 +52,7 @@ An actual thread/greeting save followed by 115 seeded old rows yields 116 baseli
 
 Actual Google 1 versus Google 2 request builders run behind synthetic fetch handlers with external network blocked. Canonical prompt contents and system instructions match after allowing only Google 2's additive explicit tool call/response IDs. Google 1 did not forward stored reasoning/signatures/redacted details, tool isError or experimental rich tool content; those fields remain stored/readable and are not inferred or fabricated. Google 2 would newly forward reasoning. A small configured-Google contextHandler omits reasoning parts, preserving the old prompt behavior while retaining the SDK's default context ordering/selection. Existing tool response content, files/media and visible text remain unchanged. This makes a scoped configured-provider claim, not a universal lossless SDK conversion claim.
 
-The default candidate without the compatibility hook demonstrably forwards extra reasoning; without explicit recovery it also leaves the old pending row unchanged. These negative controls prove why the proposed seams are needed. The compatible path keeps automatic SDK context selection and normal prompt-only storage; it does not pass historical messages as new inputs, reload/reconstruct context from text or IDs, or resave history.
+The default candidate without the compatibility hook demonstrably forwards extra reasoning; without explicit recovery it also leaves the old pending row unchanged. These negative controls prove why the implemented seams are needed. The compatible path keeps automatic SDK context selection and normal prompt-only storage; it does not pass historical messages as new inputs, reload/reconstruct context from text or IDs, or resave history.
 
 ### Explicit bounded recovery and retry outcome
 
@@ -71,7 +71,7 @@ All these fixtures execute actual component storage and SDK/model conversion cod
 
 ## Verification before acceptance
 
-After root accepts this amended mapping and deliberate bounded recovery contract: migrate only the owned package/schema/widget/agent seams, commit meaningful public validation/resource-bound and component/model/display compatibility regressions, and run the complete affected offline/local gates. Current stage baseline is 104 checks, shared UI's inherited 23 diagnostics and widget's inherited TS2367. Final acceptance requires a valid whole-workspace scan with zero high/critical findings; no ignore/exclusion/parser shortcut is authorized. Hosted billing CI remains waived, and no deployment or live provider proof is claimed.
+The accepted mapping is implemented only at the owned package/schema/widget/agent seams, with public validation/resource-bound and component/model/display compatibility regressions. Final affected local/integration/container/browser evidence remains tracked by the active plan. The original stage 1 baseline was 104 checks before the separately merged frontend security work; current gate counts are reported individually. Shared UI's inherited 23 diagnostics and widget's inherited TS2367 remain visible. Final acceptance requires a valid whole-workspace scan with zero high/critical findings; no ignore/exclusion/parser shortcut is authorized. Hosted billing CI remains waived, and no deployment or live provider proof is claimed.
 
 ## Primary references
 
@@ -79,3 +79,21 @@ After root accepts this amended mapping and deliberate bounded recovery contract
 - [AI SDK 5 migration](https://ai-sdk.dev/docs/migration-guides/migration-guide-5-0) explains model/UI message and provider changes.
 - [Zod 4 migration](https://zod.dev/v4/changelog) documents UUID, safe integer, defaults and error differences.
 - Exact package manifests/source came from the [public npm registry](https://registry.npmjs.org/), with published integrity verification. Candidate metadata establishes supported ranges; actual fixtures establish behavior.
+
+## Scoped AI download edge
+
+The inspected provider-utils 3.0.44, 3.0.45 and 3.0.46 manifests all declare Undici `^5.29.0`. That supported patch family therefore still resolves five high Undici advisories and the high Busboy advisory through Undici 5.29.0. The exact override `@ai-sdk/provider-utils@3.0.44>undici: 6.29.1` is intentionally outside the parent range; it does not replace unrelated Undici consumers.
+
+Undici 6.29.1 publishes a CommonJS `index.js`, no runtime dependencies and Node >=18.17, compatible with the verified Node 22.18.0 toolchain. Provider-utils' real Node path uses `createRequire("undici")`, `Agent({connect:{lookup}})` and `fetch(..., {dispatcher})`; those interfaces remain supported. The [official 6.29.1 release](https://github.com/nodejs/undici/releases/tag/v6.29.1) includes the function-valued Agent option cloning correction, so import/compile success alone is insufficient evidence.
+
+The portable subprocess regression invokes the actual parent default fetch without injecting a fetch implementation. Synthetic DNS responses exercise the real validating lookup callback; only after successful validation does test transport route to an owned loopback HTTP server. Private and mixed public/private DNS answers cause no HTTP request. Public redirects work; private redirect targets, redirect overflow, oversized downloads and an actually reached hung path with a fired abort signal fail. Real Agent resources, sockets and server are awaited on cleanup; an outer child deadline detects leaked resources. No external or provider network request is permitted by this fixture.
+
+Environment URL compatibility tests compare actual parsed output and interpreted endpoint/credentials. Patched trimming and tab/LF/CR normalization are deliberate; protocol, production TLS/origin and telemetry credential/query guards remain enforced. They do not promise byte-identical raw strings.
+
+## Exact declaration-only Agent patch
+
+The selected Agent 0.2.12 declaration intersects optional Config languageModel with a second required LanguageModel union. The installed AI gateway ID list makes that intersection exceed TypeScript's union limit even in a minimal program without application-generated modules. [Upstream issue 417](https://github.com/convex/agent/issues/417) identifies the same constructor design and the guard-preserving correction.
+
+The exact pnpm package patch changes only the required field to `NonNullable<Config["languageModel"]>`: once in published TypeScript source and twice in its options/constructor declarations. It retains the optional Config field, existing provider union and all required options. Published runtime JavaScript remains byte-identical. No compiler downgrade, `any` facade, cast, suppression, generated edit or model-version widening is used to hide the error.
+
+The portable compiler regression accepts the actual Google V2 model, context hook, gateway ID and a complete declared V2 shape. Six separate negative cases reject missing name/model, undefined model, wrong name type and complete V1/V3 shapes differing only in specificationVersion. Diagnostics must identify each case and the incompatible version fields, without missing-method or TS2590 substitutes. Tests live outside deployed Convex modules. The service Docker stage copies the public exact patch before its frozen install so package-manager metadata remains reproducible in that build context.

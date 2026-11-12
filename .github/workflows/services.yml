@@ -45,6 +45,7 @@ jobs:
       - run: pnpm services:lint
       - run: pnpm services:gate-lint
       - run: pnpm services:gate-test
+      - run: pnpm legacy:test
       - run: pnpm services:test
       - run: pnpm services:smoke
       - name: Deterministic isolated container lifecycle
