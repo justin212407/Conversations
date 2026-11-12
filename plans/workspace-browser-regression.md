@@ -64,6 +64,8 @@ The spec/plan proposal was accepted at `29a261dae46bfa0e80450bc8b08cab2c43ec26be
 
 ## Risks / unknowns
 
+- **Review corrections** — the first pinned review at `6d95e5c` identified uncancellable in-process bundling and ambient Playwright debug output. Preparation will move to a bounded owned build-only child with joined termination and a small private-directory writer lease; listener startup shares cancellation and a finite deadline. Unsafe debug controls are rejected before tooling imports. Actual setup assertion/deadline/SIGINT/SIGTERM tests retain the existing independent sentinels and check for late writes/listeners. Detached cleanup rejection and distinct post-restart ticket evidence are corrected in the same review pass. Existing validation criteria remain unchanged and unchecked until verified on corrected source.
+
 - **Session fidelity** — duplicating lifecycle glue in a fixture would miss production regressions. The accepted minimal extraction must stay small, preserve validation/order and be exercised in both paths; any broader domain change returns for spec review.
 - **Origin and CORS** — a real browser cannot supply Node's artificial Origin override. Reserve/discover its listener before stack config and test actual native preflights/handshakes with exact signed azp.
 - **Acknowledgement fidelity** — interception can fail before server admission or accidentally retry. Confirm actual 202/committed identities, use no network auto-retry, and only then abort the acknowledgement; inspect the supported pinned routing API before coding.

@@ -76,11 +76,15 @@ Text browser cases request no microphone access and produce no unexpected page e
 
 Browser console/network payloads, tokens, socket/control URLs, screenshots, traces, stacks and synthetic transcript captures are private run data. Keep any bounded raw captures only in owned 0700/0600 locations outside every Git checkout and image context; never upload them as CI artifacts or print them in assertion/tool output. Public results contain only allowlisted stages, fixed failure classifications, counts/booleans and cleanup status. No production debug endpoint is added for inspection.
 
+Ambient browser-tooling debug settings cannot bypass that boundary or open an unowned capture file. Reject unsafe debug controls before the first tooling import, both through the repository command and direct owned-browser helpers, without printing their values.
+
 Include browser-generated credential, ticket, title, input/output and error canaries in actual application log/trace/metric privacy checks while collectors are running. Reuse the existing real browser diagnostics-policy fixture with its in-memory receiver to prove exported frontend envelopes reject dynamic private fields; it must not contact a real DSN or turn a disabled SDK into a claim of enabled-path privacy. Provider output fingerprints are private too.
 
 Every invocation owns its browser process, contexts/pages, HTTP fixture server, profile, control connection and files. Validate a short external temporary location before launching; reject inside-Git/build-context/symlink aliases and handle overlong socket/profile paths explicitly. Never reuse owner authentication/profile files. Use supported public process/close/kill lifecycle APIs, bounded waits and verified owned termination; disconnected automation is not proof the browser exited.
 
 Normal success, assertion failure, SIGINT, SIGTERM and deadline share an idempotent cleanup path that closes browser work and its server/profile and also completes Docker cleanup. Track every result: browser/server/profile cleanup failure makes the overall result nonzero with cleanup:false even when Compose down succeeds. Failure in one cleanup step cannot skip the other owned cleanups. No global process kill, Docker prune or unrelated resource deletion is allowed. Meaningful bounded tests and actual owned-browser fault runs cover all five paths and preserve unrelated sentinels.
+
+These deadlines and cancellation rules also govern fixture bundling and listener startup before a browser or Docker handle exists. Interrupted preparation must terminate and join its owned work before private files are removed; it cannot later create a listener or recreate deleted output. An unverified writer keeps its private directory retained and makes cleanup fail. A detached cleanup rejection must remain observed until the aggregate cleanup result records it.
 
 ## Frontend workflow and evidence reporting
 
