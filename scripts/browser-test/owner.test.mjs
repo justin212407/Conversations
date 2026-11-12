@@ -61,6 +61,7 @@ test("standalone fixture uses real Next browser SDK with Next client runtime/pro
     failed = false
   try {
     server = await startFixtureServer({
+      owned,
       directory: owned.directory,
       service: true,
     })

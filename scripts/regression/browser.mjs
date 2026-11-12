@@ -11,6 +11,12 @@ import {
   privateRunDirectory,
 } from "./runtime.mjs"
 
+export function assertBrowserEnvironment() {
+  for (const name of ["DEBUG", "DEBUG_FILE", "PWDEBUG"])
+    if (process.env[name])
+      throw new GateFailure("browser-environment", "precondition")
+}
+
 export async function bounded(work, milliseconds = 5000) {
   let timer
   try {
@@ -105,6 +111,7 @@ export async function closeBrowser(
 }
 
 export async function browserOwner(owned, signal) {
+  assertBrowserEnvironment()
   // Playwright creates its profile in the *parent* Node os.tmpdir(), not merely
   // the browser child's TMPDIR. Validate that location before loading/launching.
   const probe = await privateRunDirectory()
@@ -150,7 +157,9 @@ export async function browserOwner(owned, signal) {
       return clean
     })())
   const abort = () => {
-    void cleanup()
+    // Observe the detached caller without replacing the rejected promise that
+    // the runner's finally must still aggregate as a failed cleanup.
+    void cleanup().catch(() => {})
   }
   signal?.addEventListener("abort", abort, { once: true })
   return {

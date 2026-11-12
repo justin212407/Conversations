@@ -8,6 +8,9 @@ export async function main(args = process.argv.slice(2)) {
   return runRegression(
     args,
     async () => {
+      const { assertBrowserEnvironment } =
+        await import("./regression/browser.mjs")
+      assertBrowserEnvironment()
       verifier = await import("./regression/workspace-browser.mjs")
       return verifier.verifyWorkspaceBrowser
     },

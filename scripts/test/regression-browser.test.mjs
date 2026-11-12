@@ -2,11 +2,96 @@ import assert from "node:assert/strict"
 import { test } from "node:test"
 import { createServer } from "node:net"
 import { join } from "node:path"
+import { URL, fileURLToPath } from "node:url"
 import { mkdir, access, readFile } from "node:fs/promises"
 import { composeController } from "../regression/compose.mjs"
 import { runRegression } from "../regression/runner.mjs"
 import { closeBrowser, controlListenerClosed } from "../regression/browser.mjs"
-import { privateRunDirectory } from "../regression/runtime.mjs"
+import {
+  privateRunDirectory,
+  childEnvironment,
+  run,
+} from "../regression/runtime.mjs"
+
+test("ambient Playwright debug controls are rejected before tooling can create a capture", async () => {
+  const owned = await privateRunDirectory()
+  const debugFile = join(owned.directory, "unowned-debug.log")
+  const source = `
+    import { browserOwner } from ${JSON.stringify(new URL("../regression/browser.mjs", import.meta.url).href)};
+    let owner;
+    try {
+      owner = await browserOwner({ directory: process.env.PROOF_DIR, write: async () => {} });
+      console.log(JSON.stringify({ rejected: false }));
+    } catch (error) {
+      console.log(JSON.stringify({ rejected: true, stage: error.stage }));
+    } finally { await owner?.cleanup(); }
+  `
+  try {
+    for (const [index, controls] of [
+      { DEBUG: "pw:channel,pw:protocol", DEBUG_FILE: debugFile },
+      { DEBUG_FILE: debugFile },
+      { PWDEBUG: "1" },
+    ].entries()) {
+      const directory = join(owned.directory, "case-" + index)
+      await mkdir(directory, { mode: 0o700 })
+      const result = await run(
+        process.execPath,
+        ["--input-type=module", "--eval", source],
+        {
+          env: { ...childEnvironment(), PROOF_DIR: directory, ...controls },
+          stage: "browser-debug-preflight-test",
+          timeoutMs: 10000,
+          maxBytes: 65536,
+        }
+      )
+      assert.deepEqual(JSON.parse(result.output.trim()), {
+        rejected: true,
+        stage: "browser-environment",
+      })
+      assert.equal(result.errors, "")
+      await assert.rejects(access(debugFile), { code: "ENOENT" })
+    }
+  } finally {
+    await owned.remove()
+  }
+})
+
+test("the public browser command rejects ambient debug capture before stack preparation", async () => {
+  const owned = await privateRunDirectory()
+  const debugFile = join(owned.directory, "unowned-debug.log")
+  try {
+    const result = await run(
+      process.execPath,
+      [
+        fileURLToPath(
+          new URL("../check-workspace-browser.mjs", import.meta.url)
+        ),
+      ],
+      {
+        env: {
+          ...childEnvironment(),
+          DEBUG: "pw:channel",
+          DEBUG_FILE: debugFile,
+        },
+        stage: "browser-command-debug-test",
+        timeoutMs: 10000,
+        maxBytes: 65536,
+        acceptExitCodes: [1],
+      }
+    )
+    assert.deepEqual(JSON.parse(result.output.trim()), {
+      status: "failed",
+      stage: "browser-environment",
+      code: "precondition",
+      checks: {},
+      cleanup: true,
+    })
+    assert.equal(result.errors, "")
+    await assert.rejects(access(debugFile), { code: "ENOENT" })
+  } finally {
+    await owned.remove()
+  }
+})
 
 async function reported(work) {
   const original = console.log,

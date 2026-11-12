@@ -569,6 +569,10 @@ export async function verifyWorkspaceBrowser(
   checks.committedAckReloadReplay = true
   checks.sameUserRefreshPreservesIntent = true
   stage("browser-real-reconnect")
+  const beforeReconnect = sockets.length
+  const priorTickets = new Set(
+    sockets.map((socket) => new URL(socket.url()).searchParams.get("ticket"))
+  )
   await docker.command(["stop", "realtime"], "browser-realtime-stop", 30000)
   await page.waitForFunction(
     () => globalThis.serviceFixture.store.snapshot().phase !== "live"
@@ -589,12 +593,18 @@ export async function verifyWorkspaceBrowser(
     },
     { signal }
   )
-  assert.ok(sockets.length >= 2)
+  assert.ok(
+    sockets.slice(beforeReconnect).some((socket) => {
+      const ticket = new URL(socket.url()).searchParams.get("ticket")
+      return !socket.isClosed() && ticket && !priorTickets.has(ticket)
+    })
+  )
   assert.equal(
     new Set((await rows()).map((row) => row.id)).size,
     (await rows()).length
   )
   checks.actualSocketRecovery = true
+  checks.freshReconnectTicket = true
   stage("browser-ownership-sessions")
   for (const actor of ["missing", "invalid", "expired", "pending", "wrongazp"])
     assert.equal((await native("GET", "/v1/me", undefined, actor)).status, 401)
