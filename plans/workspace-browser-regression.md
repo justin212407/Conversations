@@ -10,7 +10,7 @@ specs:
   - specs/behaviors/observability.md
   - specs/behaviors/dependency-security.md
   - specs/api/conversations.md
-issues: [25]
+issues: [24, 25]
 ---
 
 # Plan: Portable workspace browser and frontend CI regression
@@ -19,12 +19,13 @@ issues: [25]
 
 Complete the deterministic workspace browser portion of #25 on actually merged main after PR #38. Add repository-owned, pinned browser execution over real isolated services and the missing frontend CI gates. Preserve the existing eight renderer checks and full service/container/diagnostic proof as distinct evidence. This plan does not implement voice, real Clerk sign-in, cloud deployment or the whole remaining #25/#24/Slice 1 acceptance.
 
-The spec/plan proposal was accepted at `29a261dae46bfa0e80450bc8b08cab2c43ec26be` before installation or implementation. The only production adjustment is a small extraction of existing client session/context orchestration so the browser tests exercise the real identity/refresh/lifecycle boundary. Clerk verification, domain/API/worker/model/pending/auth behavior and Convex source/data remain unchanged.
+The spec/plan proposal was accepted at `29a261dae46bfa0e80450bc8b08cab2c43ec26be` before installation or implementation. Production adjustments are confined to the existing client session/context extraction and the subsequently reproduced collector-outage shutdown defect in service-runtime diagnostics (#24/#25). The latter must release actual native lookup/transport work rather than merely settle a flush promise. Its public-API ownership design requires measured candidate evidence and root acceptance before implementation. Clerk verification, domain/API route/job/worker/model/pending/auth contracts and Convex source/data remain unchanged.
 
 ## Implements
 
 - `service-regression`: repository-pinned browser commands, renderer versus real-service evidence, native-origin signed identity, durable replay/context/recovery, browser privacy, joined cleanup and frontend CI.
 - `workspace`: one shared session/context boundary retaining same-user refresh and identity replacement semantics, with unchanged strict API-origin validation and a thin normal Clerk/Next adapter.
+- `observability`: bounded ownership and termination of configured export lookups/transports, preserving healthy causal traces and operating-system lookup behavior, with a real one-request slow-DNS outage regression and live/disabled controls.
 - Architecture/lifecycle/API/observability/dependency security: preserve actual ownership, bounded durable history, idempotency/fencing, safe diagnostics, isolated resources and the full zero-high/critical audit threshold.
 
 ## Approach
@@ -39,6 +40,7 @@ The spec/plan proposal was accepted at `29a261dae46bfa0e80450bc8b08cab2c43ec26be
 8. Own BrowserServer, contexts/pages, fixture server, short external profile/temp root and bounded captures through one idempotent cleanup interface. Validate Git/build-context/symlink and path-length boundaries before launch. Use graceful close then bounded supported kill/exit verification as needed; do not equate disconnect with termination. Aggregate browser/server/profile and Docker cleanup results conjunctively, continue all cleanup steps after an individual failure, and return cleanup:false/nonzero on an unverified resource. Retain no owner profile and perform no global kill/prune. Add meaningful harness tests for command/env/path/privacy/cleanup ordering and failed cleanup, plus actual owned-browser success/assertion/SIGINT/SIGTERM/deadline runs with unrelated sentinels. Fault commands are explicit and bounded; they do not run a model or alter billing.
 9. Add a frontend workflow job on explicit Ubuntu 24.04, dependent on the service foundation job so heavy gates run serially. Retain the existing foundation/legacy/audit jobs and their commands. Run frozen install, service contracts build, web units/type/lint/clean synthetic-config production build, pinned Chromium/system installation, renderer/browser cleanup tests and the actual service-backed browser gate. Give inner stage/run budgets time to clean up before the job deadline. Browser binary or registry failures remain failures, not skips. No automatic screenshot/trace/HAR/report artifact upload, app/root env loading, paid scan or real credential is introduced.
 10. Verify locally in coordinated serial slots: frozen install; scoped format/diff/type/lint/build; all existing service, legacy, frontend, controller and harness tests; unchanged full foundation container proof; new renderer/service-backed browser proof; all actual browser fault cleanup paths; fresh full-workspace zero-high/critical audit. Preserve the exact inherited shared UI 23 diagnostics and widget footer TS2367 transparently; reject new failures. Freeze source for root's two independent reviews, then progress only after root acceptance. Publication/merge ownership remains root-directed; never publish or merge without that direction. Keep the central ignored journal updated after every small change.
+11. Correct the independently reproduced API shutdown failure before merge. Retain the actual API/PG/Redis/collector path, one signed post-outage request, observed DNS packets and the existing 750/800/5000 ms exporter/processor/service bounds and 15-second Docker grace. Healthy and tracing-disabled controls on the same private network distinguish optional exporter work from core resources. Select the smallest verified public-API cancellation/ownership solution without changing endpoint/name-resolution semantics or domain behavior. Add its regression to repository-owned serialized checks, reuse shared resource ownership, and rerun the unchanged full foundation, diagnostic privacy and healthy span-causality proof. Do not substitute a returned promise or an increased grace period for terminated work.
 
 ### Planned file ownership
 
@@ -47,9 +49,11 @@ The spec/plan proposal was accepted at `29a261dae46bfa0e80450bc8b08cab2c43ec26be
 - `scripts/check-service-regression.mjs`, new browser entry and focused `scripts/regression/*` orchestration/browser helpers and `scripts/test/*` regressions.
 - Test-only `docker-compose.regression.yml` origin/config inputs if required; root/web manifests, lockfile, services workflow and `docs/service-regression.md` runbook.
 - This spec/plan, the affected workspace session contract and unstarted durable-conversation umbrella. No completed plan is edited.
+- Narrow `packages/service-runtime` diagnostic export-lifetime implementation and tests after the measured design is accepted; repository-owned isolated DNS/shutdown regression, workflow/runbook and observability specification. No domain/API route, persistence, queue execution or provider generation behavior changes.
 
 ## Validation
 
+- [ ] The actual one-request slow-DNS collector-outage regression exits the API successfully within its existing shutdown allowance, joins all owned lookup/transport work, preserves healthy trace causality and disabled-export controls, and retains the unchanged full lifecycle assertions.
 - [ ] Clean checkout installs the exact pinned library/browser through documented repository commands, with no global tool, private helper, live credentials or owner profile dependency; toolchain/patch ownership and whole graph are preserved.
 - [ ] Shared production session/context orchestration passes same-user refresh, identity replacement/stop/clear/late-callback tests while strict API-origin validation remains before store/client creation; production Clerk/Next adaptation is unchanged and synthetic limits are explicit.
 - [ ] All eight existing renderer flows pass as separately labelled coverage, with private owned screenshot paths, no microphone request/overflow/page error and verified owned cleanup.
