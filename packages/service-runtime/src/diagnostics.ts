@@ -16,7 +16,7 @@ import {
   TraceIdRatioBasedSampler,
   type SpanExporter,
 } from "@opentelemetry/sdk-trace"
-import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-http"
+import { createDiagnosticTransport } from "./diagnostic-transport.js"
 import { Counter, Gauge, Histogram, Registry } from "@prometheus-io/client"
 import { pino, type Logger } from "pino"
 import {
@@ -260,7 +260,10 @@ export class Diagnostics {
   private readonly httpRequests
   private readonly httpDuration
   private readonly sockets
-  private closed = false
+  private closing: Promise<void> | undefined
+  private readonly transport:
+    | ReturnType<typeof createDiagnosticTransport>
+    | undefined
   constructor(
     readonly config: ServiceConfig,
     options: {
@@ -303,16 +306,11 @@ export class Diagnostics {
       registers: [this.registry],
     })
     this.sockets.set(0)
-    const exporter =
-      options.exporter ??
-      (config.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
-        ? new OTLPTraceExporter({
-            url: config.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
-            headers: {},
-            timeoutMillis: 750,
-            concurrencyLimit: 1,
-          })
-        : undefined)
+    this.transport =
+      !options.exporter && config.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
+        ? createDiagnosticTransport(config.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT)
+        : undefined
+    const exporter = options.exporter ?? this.transport?.exporter
     this.provider = new TracerProvider({
       resource: resourceFromAttributes({
         "service.name": "conversations-" + config.service,
@@ -496,24 +494,25 @@ export class Diagnostics {
     this.httpRequests.inc(labels)
     this.httpDuration.observe(labels, Math.max(0, seconds))
   }
-  async shutdown() {
-    if (this.closed) return
-    this.closed = true
-    this.active.disable()
-    let timer: NodeJS.Timeout | undefined
-    try {
-      await Promise.race([
-        this.provider.shutdown().catch(() => {}),
-        new Promise<void>((resolve) => {
-          timer = setTimeout(
-            resolve,
-            Math.min(1000, Math.floor(this.config.SHUTDOWN_TIMEOUT_MS / 4))
-          )
-        }),
-      ])
-    } finally {
-      clearTimeout(timer)
-    }
+  shutdown(): Promise<void> {
+    return (this.closing ??= (async () => {
+      this.active.disable()
+      let timer: NodeJS.Timeout | undefined
+      try {
+        await Promise.race([
+          this.provider.shutdown().catch(() => {}),
+          new Promise<void>((resolve) => {
+            timer = setTimeout(
+              resolve,
+              Math.min(1000, Math.floor(this.config.SHUTDOWN_TIMEOUT_MS / 4))
+            )
+          }),
+        ])
+      } finally {
+        clearTimeout(timer)
+        await this.transport?.close()
+      }
+    })())
   }
 }
 export type DiagnosticSpan = ReturnType<Diagnostics["start"]>
