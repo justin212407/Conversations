@@ -1,5 +1,5 @@
 ---
-status: planned
+status: in-progress
 depends:
   [service-regression, workspace, frontend-security, security-schema-legacy]
 specs:
