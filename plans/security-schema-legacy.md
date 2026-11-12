@@ -1,11 +1,12 @@
 ---
-status: in-progress
+status: done
 depends: [security-dependencies]
 specs:
   - specs/architecture.md
   - specs/behaviors/service-regression.md
   - specs/behaviors/dependency-security.md
 issues: [25]
+pr: 38
 ---
 
 # Plan: Patched schema and legacy AI compatibility
@@ -35,12 +36,12 @@ The exact declaration-only pnpm patch for Agent 0.2.12 reuses NonNullable<Config
 
 ## Validation
 
-- [ ] Both exact residual advisories from security-dependencies (Zod 3.25.76 across ten importers and AI 4/jsondiffpatch 0.6.0 in widget/backend) are remediated with all affected owners retained in the audit graph.
-- [ ] Patched Zod 4 executes patched parsing; current public valid/invalid payload semantics and bounded resource handling pass meaningful regressions without vulnerable v3 fallback.
-- [ ] Supported AI/agent/provider peers pass offline API/type/runtime and serialized component/message compatibility checks; retained data/schema/source behavior is preserved without Convex remote work.
-- [ ] jsondiffpatch and transferred compatibility-sensitive edges are genuinely fixed/removed by supported consumers or proven scoped overrides, including shipped artifacts.
-- [ ] Full affected service/frontend/widget/UI/legacy gates have actual evidence, inherited limitations stay visible and no new regressions or live/provider/config/data mutation is introduced.
-- [ ] A fresh valid complete-workspace audit has zero high/critical findings without ignores/exclusions/scanner weakening; otherwise final acceptance and #25 remain open.
+- [x] Both exact residual advisories from security-dependencies (Zod 3.25.76 across ten importers and AI 4/jsondiffpatch 0.6.0 in widget/backend) are remediated with all affected owners retained in the audit graph.
+- [x] Patched Zod 4 executes patched parsing; current public valid/invalid payload semantics and bounded resource handling pass meaningful regressions without vulnerable v3 fallback.
+- [x] Supported AI/agent/provider peers pass offline API/type/runtime and serialized component/message compatibility checks; retained data/schema/source behavior is preserved without Convex remote work.
+- [x] jsondiffpatch and transferred compatibility-sensitive edges are genuinely fixed/removed by supported consumers or proven scoped overrides, including shipped artifacts.
+- [x] Full affected service/frontend/widget/UI/legacy gates have actual evidence, inherited limitations stay visible and no new regressions or live/provider/config/data mutation is introduced.
+- [x] A fresh valid complete-workspace audit has zero high/critical findings without ignores/exclusions/scanner weakening; otherwise final acceptance and #25 remain open.
 
 URL compatibility tests compare parsed values and effective connection/guard meaning, including patched trim and tab/LF/CR normalization. No byte-identical raw environment URL promise or broader origin permission is introduced.
 
@@ -52,9 +53,17 @@ Registry peers establish a candidate family, not component data compatibility. A
 
 Compatible stage [PR #36](https://github.com/justin212407/Conversations/pull/36) explicitly transfers the two still-failing high findings in the [exact residual ledger](../docs/dependency-security-stage-1.md). PR #36 actually merged as 55f4258 before this work began; the prior head is confirmed on main. Zod owners are apps/api, apps/realtime, apps/web, apps/widget, apps/worker, packages/backend, packages/database, packages/service-runtime, packages/shared and packages/ui; jsondiffpatch owners are apps/widget and packages/backend. The preceding stage does not waive these findings or final #25 acceptance.
 
-The companion plan was authored before implementation and began only after PR #36 actually merged; its accepted concrete mapping was rebased onto PR #37's actual merge before package/source edits. The [implemented mapping](../docs/dependency-security-schema-mapping.md) and [verification record](../docs/dependency-security-schema-evidence.md) now record exact resolutions, reviewed compatibility corrections and actual evidence. Final scoped acceptance remains pending the unchecked validations above.
+The companion plan was authored before implementation and began only after PR #36 actually merged; its accepted concrete mapping was rebased onto PR #37's actual merge before package/source edits. The [implemented mapping](../docs/dependency-security-schema-mapping.md) and [verification record](../docs/dependency-security-schema-evidence.md) now record exact resolutions, reviewed compatibility corrections and actual evidence. Scoped implementation is closed in [PR #38](https://github.com/justin212407/Conversations/pull/38), with implementation source c09eab0338e4bf03637bd4706ae7696ecbe1f708 independently cleared on both specification and standards axes. This closeout changes only documentation.
+
+All 129 automated tests pass: 75 service, 23 harness, 21 web, 9 legacy and 1 actual workspace controller integration. Clean frozen installation, service build/type/lint, web type/lint, actual backend offline types and math build pass. Root repeated the final-source synthetic-config web production build after the declaration patch. Shared UI retains exactly 23 inherited diagnostics; widget typecheck/build retains only its original footer TS2367. These inherited failures are not reported as passes.
+
+The actual isolated PG/Redis/controller/process checks and full container lifecycle pass with verified owned cleanup. Container evidence includes auth isolation, streaming/replay, exact context after service restart, failure/retry, socket recovery, privacy, collector outage, 8 causal trace stages, 3 healthy scrape targets, 4 distinct operations and 3 graceful service exits. The service-only frozen image install succeeds with the public patch files and no added legacy runtime consumers. All 8 desktop/mobile fixture flows pass with 0 microphone/page/external errors and no overflow.
+
+The fresh full-workspace audit passes the unchanged high/critical threshold: 0 high / 0 critical, with 26 moderate / 5 low and 31 records retained. Pinned pnpm JSON exit semantics are handled through validated metadata/advisories; malformed/unavailable results remain failures. Final lockfile SHA256 is e400266809bf2939318900467e276849a24c4a91087ece41a948a1fe9e03e501.
+
+Offline scripted gates never load private application configuration or call models. Separately, root’s read-only existing real Clerk personal-session check returns account 200 and preserves all 8 original message identities through reload/list/reopen in the migrated frontend, with no generation/microphone request. That retained backend uses earlier dependencies; the isolated container gate proves the new service artifact. Owned preview/browser cleanup is verified. Hosted execution is unavailable under the owner's explicit waiver; voice, production TLS/deployment and complete issue #25 / Slice 1 acceptance remain unclaimed.
 
 ## Follow-ups
 
-- Issue [#25](https://github.com/justin212407/Conversations/issues/25) — final complete lifecycle/browser/voice acceptance and unavailable hosted execution remain distinct from dependency audit success.
+- Issue [#25](https://github.com/justin212407/Conversations/issues/25) — portable browser CI, complete provider-event/voice lifecycle acceptance and unavailable hosted execution remain distinct from this verified dependency stage.
 - Issue [#26](https://github.com/justin212407/Conversations/issues/26) — production deployment evidence remains deferred; no offline dependency result claims a deployed migration or voice capability.
