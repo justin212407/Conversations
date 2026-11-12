@@ -4,6 +4,10 @@ import type {
   createTransport,
   captureEvent,
   init,
+  BrowserClient,
+  NodeClient,
+  VercelEdgeClient,
+  setCurrentClient,
 } from "@sentry/nextjs"
 
 type Runtime = "browser" | "node" | "edge"
@@ -183,6 +187,7 @@ export function diagnosticsOptions(
     sendClientReports: false,
     enableLogs: false,
     enableMetrics: false,
+    spotlight: false,
     tracesSampleRate: undefined,
     tracePropagationTargets: [],
     replaysSessionSampleRate: 0,
@@ -207,17 +212,35 @@ export function diagnosticsOptions(
 
 export function initializeDiagnostics(
   sdk: {
-    init: (
-      options: NonNullable<ReturnType<typeof diagnosticsOptions>>
-    ) => unknown
     createTransport: typeof createTransport
+    setCurrentClient: typeof setCurrentClient
+    BrowserClient?: typeof BrowserClient
+    NodeClient?: typeof NodeClient
+    VercelEdgeClient?: typeof VercelEdgeClient
   },
   runtime: Runtime,
-  dsn: string | undefined
+  dsn: string | undefined,
+  http: typeof fetch = globalThis.fetch
 ) {
   try {
-    const options = diagnosticsOptions(runtime, dsn, sdk.createTransport)
-    if (options) sdk.init(options)
+    const options = diagnosticsOptions(runtime, dsn, sdk.createTransport, http)
+    if (!options) return
+    // Convenience initializers can add environment-selected senders, global error
+    // handlers and tracing hooks even when integrations are disabled. Bind only
+    // an explicit public client; its empty integration list owns all collection.
+    const Client = {
+      browser: sdk.BrowserClient,
+      node: sdk.NodeClient,
+      edge: sdk.VercelEdgeClient,
+    }[runtime]
+    if (!Client) return
+    const client = new Client({
+      ...options,
+      integrations: [],
+      stackParser: () => [],
+    })
+    sdk.setCurrentClient(client)
+    client.init()
   } catch {
     // Optional configuration/SDK failures cannot prevent application startup.
   }

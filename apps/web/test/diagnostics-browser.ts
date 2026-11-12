@@ -2,7 +2,6 @@
 // The receiver is in memory: the synthetic DSN must never be contacted.
 import * as Sentry from "@sentry/nextjs"
 import {
-  diagnosticsOptions,
   initializeDiagnostics,
   reportFailure,
 } from "../modules/diagnostics/policy"
@@ -11,13 +10,14 @@ export async function verifyBrowserDiagnostics() {
   const canary = "PRIVATE_BROWSER_TRANSCRIPT_TICKET_URL_STACK_CANARY"
   const bodies: string[] = []
   const originalConsole = [console.log, console.warn, console.error]
+  const originalHandlers = [window.onerror, window.onunhandledrejection]
   const check = (value: unknown) => {
     if (!value) throw new Error("Browser diagnostics verification failed")
   }
-  const options = diagnosticsOptions(
+  initializeDiagnostics(
+    Sentry,
     "browser",
     "https://public@example.invalid/1",
-    Sentry.createTransport,
     async (_url, init) => {
       check(
         init?.credentials === "omit" &&
@@ -28,14 +28,13 @@ export async function verifyBrowserDiagnostics() {
       return new Response(null, { status: 200 })
     }
   )
-  check(options)
-  if (!options) throw new Error("Missing synthetic diagnostics options")
-  Sentry.init(options)
   try {
     const client = Sentry.getClient()
     if (!client) throw new Error("Missing browser SDK client")
     check(Sentry.SDK_VERSION === "10.78.0")
     check(client.getOptions().integrations?.length === 0)
+    check(window.onerror === originalHandlers[0])
+    check(window.onunhandledrejection === originalHandlers[1])
     client.on("beforeSendEvent", (event) => {
       event.event_id = canary
       event.tags = { failure: canary, runtime: canary }
@@ -109,10 +108,13 @@ export async function verifyBrowserDiagnostics() {
   for (const dsn of [undefined, "", "invalid synthetic DSN"])
     initializeDiagnostics(
       {
-        init() {
-          initializations++
-        },
-        createTransport: Sentry.createTransport,
+        ...Sentry,
+        BrowserClient: new Proxy(Sentry.BrowserClient, {
+          construct() {
+            initializations++
+            throw new Error("Invalid configuration initialized diagnostics")
+          },
+        }),
       },
       "browser",
       dsn
@@ -132,5 +134,6 @@ export async function verifyBrowserDiagnostics() {
     disabledEnvelopes: 0,
     nonErrorEnvelopes: 0,
     consoleUnchanged: true,
+    globalErrorHandlersUnchanged: true,
   }
 }

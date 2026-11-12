@@ -57,14 +57,7 @@ function inspect(body: string, runtime: string, failure: string) {
 
 test("actual Next.js Node SDK serializes only safe summaries after processing, enrichment and attachments", async () => {
   const bodies: string[] = []
-  const options = diagnosticsOptions(
-    "node",
-    dsn,
-    Sentry.createTransport,
-    receiver(bodies)
-  )
-  assert.ok(options)
-  Sentry.init(options)
+  initializeDiagnostics(Sentry, "node", dsn, receiver(bodies))
   try {
     const client = Sentry.getClient()
     assert.ok(client)
@@ -227,6 +220,56 @@ test("final SDK serializer drops other envelope kinds and repairs no untrusted e
   inspect(bodies[0]!, "edge", "application_error")
 })
 
+test("explicit Node client ignores environment-selected senders and tracing bootstrap", async () => {
+  const names = [
+    "SENTRY_SPOTLIGHT",
+    "SENTRY_TRACES_SAMPLE_RATE",
+    "SENTRY_TRACE",
+    "SENTRY_BAGGAGE",
+  ] as const
+  const previous = names.map((name) => process.env[name])
+  const bodies: string[] = []
+  const errorListeners = process.listeners("uncaughtException")
+  const rejectionListeners = process.listeners("unhandledRejection")
+  const propagation = Sentry.getCurrentScope().getPropagationContext()
+  try {
+    Object.assign(process.env, {
+      SENTRY_SPOTLIGHT: "http://127.0.0.1:9/stream",
+      SENTRY_TRACES_SAMPLE_RATE: "1",
+      SENTRY_TRACE: `${"a".repeat(32)}-${"b".repeat(16)}-1`,
+      SENTRY_BAGGAGE: `sentry-environment=${canary}`,
+    })
+    initializeDiagnostics(Sentry, "node", dsn, receiver(bodies))
+    const client = Sentry.getClient()
+    assert.ok(client)
+    // Assert no bypass sender before capturing anything: a regression must not
+    // send a poisoned envelope to a real local Spotlight service.
+    assert.deepEqual(client.getOptions().integrations, [])
+    assert.equal(Reflect.get(client.getOptions(), "spotlight"), false)
+    assert.equal(client.getOptions().tracesSampleRate, undefined)
+    assert.deepEqual(process.listeners("uncaughtException"), errorListeners)
+    assert.deepEqual(
+      process.listeners("unhandledRejection"),
+      rejectionListeners
+    )
+    assert.deepEqual(
+      Sentry.getCurrentScope().getPropagationContext(),
+      propagation
+    )
+    reportFailure(Sentry.captureEvent, "request_error")
+    assert.equal(await Sentry.flush(1000), true)
+    assert.equal(bodies.length, 1)
+    inspect(bodies[0]!, "node", "request_error")
+  } finally {
+    await Sentry.close(1000)
+    names.forEach((name, index) => {
+      const value = previous[index]
+      if (value === undefined) delete process.env[name]
+      else process.env[name] = value
+    })
+  }
+})
+
 test("installed edge-specific SDK entrypoint processes safe request errors (Node host, not deployed edge)", async () => {
   const require = createRequire(import.meta.url)
   const edge: typeof Sentry = require(
@@ -236,15 +279,12 @@ test("installed edge-specific SDK entrypoint processes safe request errors (Node
     )
   )
   const bodies: string[] = []
-  const options = diagnosticsOptions(
-    "edge",
-    dsn,
-    edge.createTransport,
-    receiver(bodies)
-  )
-  assert.ok(options)
-  edge.init(options)
+  const errorHandler = globalThis.onerror
+  const rejectionHandler = globalThis.onunhandledrejection
+  initializeDiagnostics(edge, "edge", dsn, receiver(bodies))
   try {
+    assert.equal(globalThis.onerror, errorHandler)
+    assert.equal(globalThis.onunhandledrejection, rejectionHandler)
     reportFailure(edge.captureEvent, "request_error")
     edge.captureException(new Error(canary))
     assert.equal(await edge.flush(1000), true)
@@ -259,6 +299,15 @@ test("installed edge-specific SDK entrypoint processes safe request errors (Node
 
 test("missing/invalid configuration never initializes and diagnostic failures preserve control results", async () => {
   let calls = 0
+  const rejectingSdk = {
+    ...Sentry,
+    NodeClient: new Proxy(Sentry.NodeClient, {
+      construct() {
+        calls++
+        throw new Error(canary)
+      },
+    }),
+  }
   for (const value of [
     undefined,
     "",
@@ -272,29 +321,10 @@ test("missing/invalid configuration never initializes and diagnostic failures pr
     "https://public@example.invalid/1?",
     "https://public@example.invalid/1#",
   ])
-    initializeDiagnostics(
-      {
-        init() {
-          calls++
-        },
-        createTransport: Sentry.createTransport,
-      },
-      "browser",
-      value
-    )
+    initializeDiagnostics(rejectingSdk, "node", value)
   assert.equal(calls, 0)
-  assert.doesNotThrow(() =>
-    initializeDiagnostics(
-      {
-        init() {
-          throw new Error(canary)
-        },
-        createTransport: Sentry.createTransport,
-      },
-      "node",
-      dsn
-    )
-  )
+  assert.doesNotThrow(() => initializeDiagnostics(rejectingSdk, "node", dsn))
+  assert.equal(calls, 1)
   let domainCalls = 0
   const outcome = () => {
     domainCalls++
