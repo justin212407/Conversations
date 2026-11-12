@@ -19,9 +19,11 @@
     "observability:prepare": "node --env-file-if-exists=.env scripts/prepare-observability.mjs",
     "services:regression": "node scripts/check-service-regression.mjs",
     "services:gate-test": "node --test scripts/test/*.test.mjs",
-    "services:gate-lint": "node apps/api/node_modules/eslint/bin/eslint.js --config scripts/eslint.config.mjs scripts/regression scripts/test scripts/check-service-regression.mjs scripts/audit-dependencies.mjs --max-warnings 0",
+    "services:gate-lint": "node apps/api/node_modules/eslint/bin/eslint.js --config scripts/eslint.config.mjs scripts/regression scripts/test scripts/check-service-regression.mjs scripts/check-workspace-browser.mjs scripts/audit-dependencies.mjs --max-warnings 0",
     "dependencies:audit": "node scripts/audit-dependencies.mjs",
-    "legacy:test": "pnpm --filter @workspace/backend test:compatibility"
+    "legacy:test": "pnpm --filter @workspace/backend test:compatibility",
+    "workspace:regression": "node scripts/check-workspace-browser.mjs",
+    "workspace:browser-install": "pnpm --filter web exec playwright install chromium"
   },
   "devDependencies": {
     "@workspace/eslint-config": "workspace:*",

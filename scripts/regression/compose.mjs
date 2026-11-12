@@ -70,11 +70,18 @@ export async function verifyDocker(execute = run, env = childEnvironment()) {
     throw new GateFailure("docker-target", "precondition")
   return prefix
 }
-export async function reservations() {
+export async function reservations({ browser = false } = {}) {
   const servers = [],
     ports = {}
   try {
-    for (const name of ["api", "worker", "realtime", "jaeger", "prom"]) {
+    for (const name of [
+      "api",
+      "worker",
+      "realtime",
+      "jaeger",
+      "prom",
+      ...(browser ? ["browser"] : []),
+    ]) {
       const server = createServer()
       servers.push(server)
       await new Promise((resolve, reject) => {
@@ -85,13 +92,15 @@ export async function reservations() {
     }
     return {
       ports,
-      async release() {
+      async release(name) {
         await Promise.all(
-          servers.map((server) =>
-            server.listening
-              ? new Promise((resolve) => server.close(resolve))
-              : Promise.resolve()
-          )
+          servers
+            .filter((_, index) => !name || Object.keys(ports)[index] === name)
+            .map((server) =>
+              server.listening
+                ? new Promise((resolve) => server.close(resolve))
+                : Promise.resolve()
+            )
         )
       },
     }
@@ -100,11 +109,11 @@ export async function reservations() {
     throw error
   }
 }
-export async function prepare() {
+export async function prepare({ browser = false } = {}) {
   const owned = await privateRunDirectory()
   let ports
   try {
-    ports = await reservations()
+    ports = await reservations({ browser })
     const signing = generateKeyPairSync("rsa", { modulusLength: 2048 })
     const secret = () => randomBytes(32).toString("base64url")
     const credentials = {
@@ -130,6 +139,9 @@ export async function prepare() {
     )
     const values = {
       REGRESSION_PROJECT: owned.project,
+      REGRESSION_AUTHORIZED_PARTIES: browser
+        ? "http://127.0.0.1:" + ports.ports.browser
+        : "http://localhost:3000",
       REGRESSION_IMAGE: image,
       REGRESSION_DB_PASSWORD: credentials.database,
       REGRESSION_DATABASE_URL: `postgresql://conversations:${credentials.database}@postgres:5432/conversations`,
@@ -161,7 +173,7 @@ export async function prepare() {
     return {
       ...owned,
       ports: ports.ports,
-      releasePorts: () => ports.release(),
+      releasePorts: (name) => ports.release(name),
       signing,
       credentials,
       image,

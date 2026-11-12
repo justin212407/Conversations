@@ -26,7 +26,7 @@ export function contextDigest(messages) {
       .digest("hex")
   )
 }
-function token(signing, actor, extra = {}) {
+export function token(signing, actor, extra = {}, authorizedParty = origin) {
   const now = Math.floor(Date.now() / 1000),
     enc = (value) => Buffer.from(JSON.stringify(value)).toString("base64url")
   const unsigned =
@@ -37,7 +37,7 @@ function token(signing, actor, extra = {}) {
       sid: "sess_regression_" + actor,
       sts: "active",
       iss: issuer,
-      azp: origin,
+      azp: authorizedParty,
       iat: now,
       nbf: now - 1,
       exp: now + 600,
