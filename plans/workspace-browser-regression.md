@@ -19,7 +19,7 @@ issues: [25]
 
 Complete the deterministic workspace browser portion of #25 on actually merged main after PR #38. Add repository-owned, pinned browser execution over real isolated services and the missing frontend CI gates. Preserve the existing eight renderer checks and full service/container/diagnostic proof as distinct evidence. This plan does not implement voice, real Clerk sign-in, cloud deployment or the whole remaining #25/#24/Slice 1 acceptance.
 
-No installation, runtime/browser/Docker work or product implementation starts until root accepts this proposal. The only proposed production adjustment is a small extraction of existing client session/context orchestration so the browser tests exercise the real identity/refresh/lifecycle boundary. Clerk verification, domain/API/worker/model/pending/auth behavior and Convex source/data remain unchanged.
+The spec/plan proposal was accepted at `29a261dae46bfa0e80450bc8b08cab2c43ec26be` before installation or implementation. The only production adjustment is a small extraction of existing client session/context orchestration so the browser tests exercise the real identity/refresh/lifecycle boundary. Clerk verification, domain/API/worker/model/pending/auth behavior and Convex source/data remain unchanged.
 
 ## Implements
 
@@ -74,7 +74,7 @@ No installation, runtime/browser/Docker work or product implementation starts un
 
 ## Notes
 
-Proposal only. Main prerequisites are actually merged: workspace PR #32, regression foundation PR #34, frontend privacy/configuration PR #37 and dependency/schema PR #38 (`acf433a6c73673732e8a05040d4b311c08f1c0f1`). Existing actual Clerk/Google acceptance is recorded in the completed workspace plan; later read-only Clerk/history checks were separate from synthetic gates. No product code, dependency/install, browser or Docker mutation is part of this proposal.
+Implementation is in progress against the accepted proposal. Main prerequisites are actually merged: workspace PR #32, regression foundation PR #34, frontend privacy/configuration PR #37 and dependency/schema PR #38 (`acf433a6c73673732e8a05040d4b311c08f1c0f1`). Existing actual Clerk/Google acceptance is recorded in the completed workspace plan; later read-only Clerk/history checks were separate from synthetic gates. The initial shared session extraction and isolated real-browser runner are implemented. Final frozen-source gates, independent review and closeout remain pending; unchecked criteria below are not a claim of acceptance.
 
 Primary guidance reviewed: [Playwright CI](https://playwright.dev/docs/ci), [browser installation](https://playwright.dev/docs/browsers), [BrowserServer lifecycle](https://playwright.dev/docs/api/class-browserserver) and [route.fetch](https://playwright.dev/docs/api/class-route#route-fetch). Their availability does not replace checking the actual pinned source/API and cleanup behavior during implementation.
 

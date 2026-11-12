@@ -106,7 +106,8 @@ export async function verifyWorkspaceBrowser(
     privateValues.add(value)
     browserValues.add(value)
   }
-  let documentSocketStart = 0
+  let documentSocketStart = 0,
+    invalidFrames = 0
   const sockets = [],
     closedSockets = new Set(),
     frames = []
@@ -195,6 +196,7 @@ export async function verifyWorkspaceBrowser(
       try {
         frames.push(JSON.parse(String(event.payload)))
       } catch {
+        invalidFrames++
         owner.captureRaw("frame-parse", "Invalid frame")
       }
     })
@@ -476,6 +478,7 @@ export async function verifyWorkspaceBrowser(
   stage("browser-lost-ack-refresh")
   const beforeLost = await providerCount()
   const lost = await loseAcknowledgement("Lost acknowledgement " + canary)
+  assert.equal((await state()).draft, lost.request.content)
   await page.evaluate(() => {
     globalThis.retainedStore = globalThis.serviceFixture.store
     globalThis.serviceFixture.refresh()
@@ -492,6 +495,13 @@ export async function verifyWorkspaceBrowser(
     (await state()).intent.clientRequestId,
     lost.request.clientRequestId
   )
+  assert.equal((await state()).draft, lost.request.content)
+  assert.equal(
+    await page
+      .getByRole("textbox", { name: "Message", exact: true })
+      .inputValue(),
+    lost.request.content
+  )
   await fresh()
   await completed(lost.request.content, lost.admission.assistantMessageId)
   assert.equal(
@@ -502,14 +512,22 @@ export async function verifyWorkspaceBrowser(
     (row) => row.id === lost.admission.assistantMessageId
   )
   assert.equal(completedLost.state, "completed")
-  let replay
-  const observe = async (response) => {
+  let replay,
+    replayError = false
+  const observe = (response) => {
     if (
       response.request().method() === "POST" &&
       response.url().endsWith("/messages") &&
       response.status() === 202
     )
-      replay = await response.json()
+      void response
+        .json()
+        .then((value) => {
+          replay = value
+        })
+        .catch(() => {
+          replayError = true
+        })
   }
   page.on("response", observe)
   await page
@@ -520,7 +538,15 @@ export async function verifyWorkspaceBrowser(
   )
   page.off("response", observe)
   await lost.remove()
-  await until("browser-replay-identities", () => replay, { signal })
+  await until(
+    "browser-replay-identities",
+    () => {
+      if (replayError)
+        throw new GateFailure("browser-replay-identities", "invalid_result")
+      return replay
+    },
+    { signal }
+  )
   for (const key of [
     "operationId",
     "conversationId",
@@ -764,6 +790,7 @@ export async function verifyWorkspaceBrowser(
   assert.equal(runtime.counts().microphoneRequests, 0)
   runtime.verify()
   await runtime.context.close()
+  assert.equal(invalidFrames, 0)
   checks.browserDiagnosticPrivacy = true
   checks.microphoneRequests = 0
   return checks

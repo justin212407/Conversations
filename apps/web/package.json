@@ -11,8 +11,7 @@
     "format": "prettier --write \"**/*.{ts,tsx}\"",
     "typecheck": "pnpm --filter @conversations/shared build && tsc --noEmit",
     "test": "pnpm --filter @conversations/shared build && tsx --test test/*.test.ts",
-    "test:integration": "pnpm -w services:build && tsx --test test/*.test.mjs",
-    "test:browser:serve": "pnpm --filter @conversations/shared build && tsx test/browser-server.mjs"
+    "test:integration": "pnpm -w services:build && tsx --test test/*.test.mjs"
   },
   "dependencies": {
     "@clerk/nextjs": "^7.4.1",
