@@ -120,28 +120,26 @@ export function createDiagnosticTransport(
             failure = true
           }
         }
-        // A close event, not destroyed=true, proves the owned stream has ended.
+        // Export rejection is optional after settlement; an unjoined queue is not.
+        const exporterClose = Promise.resolve()
+          .then(() => exporter.shutdown())
+          .catch(() => {})
         let timer: NodeJS.Timeout | undefined
-        const socketClose = new Promise<void>((resolve, reject) => {
+        const deadline = new Promise<never>((_resolve, reject) => {
           timer = setTimeout(() => reject(lookupFailure()), 1000)
-          void Promise.all([...sockets.values()]).then(() => {
-            clearTimeout(timer)
-            resolve()
-          }, reject)
         })
-        const results = await Promise.allSettled([
-          lookupClose,
-          socketClose,
-          exporter.shutdown(),
-        ])
+        // Socket close events and SDK settlement share the same finite join budget.
+        const results = await Promise.allSettled(
+          [lookupClose, Promise.all([...sockets.values()]), exporterClose].map(
+            (work) => Promise.race([work, deadline])
+          )
+        )
         clearTimeout(timer)
         if (
-          results[0]?.status === "rejected" ||
-          results[1]?.status === "rejected" ||
+          results.some((result) => result.status === "rejected") ||
           sockets.size
         )
           failure = true
-        // Export failure is optional once all owned lookup/socket resources ended.
         if (failure) throw lookupFailure()
       })())
     },

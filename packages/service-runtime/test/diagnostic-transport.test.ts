@@ -117,6 +117,54 @@ test("close fences an awaited public Agent import before construction or IP I/O"
   assert.equal(created, 0)
 })
 
+test("close rejects within its budget while an Agent import remains held", async () => {
+  let entered: () => void = () => {},
+    release: (value: typeof Agent) => void = () => {},
+    created = 0,
+    timer: NodeJS.Timeout | undefined
+  const loaded = new Promise<void>((resolve) => {
+      entered = resolve
+    }),
+    held = new Promise<typeof Agent>((resolve) => {
+      release = resolve
+    })
+  class ObservedAgent extends Agent {
+    constructor(options?: AgentOptions) {
+      super(options)
+      created++
+    }
+  }
+  const transport = createDiagnosticTransport("http://127.0.0.1:1/v1/traces", {
+    loadAgent: () => {
+      entered()
+      return held
+    },
+  })
+  const sending = exported(transport.exporter)
+  await loaded
+  const closing = transport.close()
+  try {
+    const outcome = await Promise.race([
+      closing.then(
+        () => "closed",
+        () => "failed"
+      ),
+      new Promise<string>((resolve) => {
+        timer = setTimeout(() => resolve("pending"), 1500)
+      }),
+    ])
+    assert.equal(outcome, "failed")
+    assert.equal(transport.close(), closing)
+    assert.equal(created, 0)
+  } finally {
+    clearTimeout(timer)
+    release(ObservedAgent)
+    await closing.catch(() => {})
+    assert.equal(await sending, 1)
+    assert.equal(created, 0)
+  }
+})
+
 test("stalled real HTTP response is cancelled and its connection closes before return", async () => {
   let reached: () => void = () => {}
   const intake = new Promise<void>((resolve) => {
