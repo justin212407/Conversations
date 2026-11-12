@@ -110,15 +110,15 @@ export function auditReport(data, exitCode) {
     advisories.some((item) => item === undefined) ||
     (all.length === 0 && Object.values(counts).some((count) => count > 0)) ||
     (all.length > 0 && !Object.values(counts).some((count) => count > 0)) ||
-    (exitCode === 1 &&
-      !advisories.some((item) => ["high", "critical"].includes(item.severity)))
+    (exitCode === 1 && all.length === 0)
   )
     return unavailable
   const failed =
-    exitCode !== 0 ||
     counts.high > 0 ||
     counts.critical > 0 ||
     advisories.some((item) => ["high", "critical"].includes(item.severity))
+  // pnpm 10.4.1 JSON mode exits 1 for any vulnerability before its text-mode
+  // audit-level filter. Apply our threshold to the complete validated report.
   return {
     status: failed ? "findings" : "passed",
     counts,
