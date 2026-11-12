@@ -1,0 +1,166 @@
+{
+  "source": "@convex-dev/agent 0.1.16 toUIMessages",
+  "documents": [
+    {
+      "_creationTime": 1000,
+      "threadId": "thread-fixture",
+      "stepOrder": 0,
+      "status": "success",
+      "tool": false,
+      "_id": "user-1",
+      "order": 0,
+      "text": "same",
+      "message": {
+        "role": "user",
+        "content": "same"
+      }
+    },
+    {
+      "_creationTime": 1000,
+      "threadId": "thread-fixture",
+      "stepOrder": 0,
+      "status": "success",
+      "tool": false,
+      "_id": "user-2",
+      "order": 1,
+      "text": "same",
+      "message": {
+        "role": "user",
+        "content": "same"
+      }
+    },
+    {
+      "_creationTime": 1000,
+      "threadId": "thread-fixture",
+      "stepOrder": 0,
+      "status": "success",
+      "tool": true,
+      "_id": "call",
+      "order": 2,
+      "text": "before",
+      "message": {
+        "role": "assistant",
+        "content": [
+          {
+            "type": "text",
+            "text": "before"
+          },
+          {
+            "type": "tool-call",
+            "toolCallId": "call-1",
+            "toolName": "fixture",
+            "args": {
+              "value": 1
+            }
+          }
+        ]
+      }
+    },
+    {
+      "_creationTime": 1000,
+      "threadId": "thread-fixture",
+      "stepOrder": 1,
+      "status": "success",
+      "tool": true,
+      "_id": "result",
+      "order": 2,
+      "message": {
+        "role": "tool",
+        "content": [
+          {
+            "type": "tool-result",
+            "toolCallId": "call-1",
+            "toolName": "fixture",
+            "result": {
+              "answer": 1
+            },
+            "isError": false
+          }
+        ]
+      }
+    },
+    {
+      "_creationTime": 1000,
+      "threadId": "thread-fixture",
+      "stepOrder": 2,
+      "status": "success",
+      "tool": false,
+      "_id": "final",
+      "order": 2,
+      "text": "after",
+      "message": {
+        "role": "assistant",
+        "content": "after"
+      }
+    },
+    {
+      "_creationTime": 1000,
+      "threadId": "thread-fixture",
+      "stepOrder": 0,
+      "status": "failed",
+      "tool": false,
+      "_id": "failed",
+      "order": 3,
+      "text": "interrupted",
+      "message": {
+        "role": "assistant",
+        "content": "interrupted"
+      }
+    },
+    {
+      "_creationTime": 1000,
+      "threadId": "thread-fixture",
+      "stepOrder": 0,
+      "status": "pending",
+      "tool": false,
+      "_id": "pending",
+      "order": 4
+    },
+    {
+      "_creationTime": 1000,
+      "threadId": "thread-fixture",
+      "stepOrder": 0,
+      "status": "success",
+      "tool": false,
+      "_id": "empty",
+      "order": 5,
+      "text": "",
+      "message": {
+        "role": "assistant",
+        "content": ""
+      }
+    }
+  ],
+  "expected": [
+    {
+      "id": "user-1",
+      "role": "user",
+      "content": "same",
+      "status": "success"
+    },
+    {
+      "id": "user-2",
+      "role": "user",
+      "content": "same",
+      "status": "success"
+    },
+    {
+      "id": "final",
+      "role": "assistant",
+      "content": "beforeafter",
+      "status": "success"
+    },
+    {
+      "id": "failed",
+      "role": "assistant",
+      "content": "interrupted",
+      "status": "failed"
+    },
+    {
+      "id": "empty",
+      "role": "assistant",
+      "content": "",
+      "status": "success"
+    }
+  ]
+}

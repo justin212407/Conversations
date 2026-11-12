@@ -5,6 +5,7 @@ RUN corepack enable && corepack prepare pnpm@10.4.1 --activate
 
 FROM base AS services
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY patches ./patches
 COPY packages/typescript-config ./packages/typescript-config
 COPY packages/eslint-config ./packages/eslint-config
 COPY packages/shared ./packages/shared

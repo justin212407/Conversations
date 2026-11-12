@@ -3,7 +3,8 @@
   "type": "module",
   "scripts": {
     "dev": "convex dev",
-    "build": "convex dev --until-success"
+    "build": "convex dev --until-success",
+    "test:compatibility": "vitest run --config vitest.config.ts && node --test --test-concurrency=1 test/*.test.mjs"
   },
   "exports": {
     "./convex": "./convex/*.ts"
@@ -11,17 +12,22 @@
   "devDependencies": {
     "@types/node": "^25.2.3",
     "@workspace/typescript-config": "workspace:*",
-    "typescript": "latest"
+    "typescript": "latest",
+    "convex-test": "0.0.54",
+    "vitest": "5.1.0",
+    "vite": "8.3.6",
+    "@edge-runtime/vm": "5.0.0"
   },
   "dependencies": {
-    "@ai-sdk/google": "1.2.22",
-    "@ai-sdk/openai": "1.3.23",
+    "@ai-sdk/google": "2.0.108",
+    "@ai-sdk/openai": "2.0.140",
     "@clerk/backend": "^3.7.0",
-    "@convex-dev/agent": "0.1.16",
-    "ai": "4.3.19",
+    "@convex-dev/agent": "0.2.12",
+    "ai": "5.0.285",
     "convex": "1.42.0",
     "convex-helpers": "^0.1.119",
-    "zod": "3.25.76",
-    "hono": "4.12.25"
+    "zod": "4.6.7",
+    "hono": "4.12.25",
+    "@ai-sdk/provider-utils": "3.0.44"
   }
 }

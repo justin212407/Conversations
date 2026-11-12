@@ -20,7 +20,8 @@
     "services:regression": "node scripts/check-service-regression.mjs",
     "services:gate-test": "node --test scripts/test/*.test.mjs",
     "services:gate-lint": "node apps/api/node_modules/eslint/bin/eslint.js --config scripts/eslint.config.mjs scripts/regression scripts/test scripts/check-service-regression.mjs scripts/audit-dependencies.mjs --max-warnings 0",
-    "dependencies:audit": "node scripts/audit-dependencies.mjs"
+    "dependencies:audit": "node scripts/audit-dependencies.mjs",
+    "legacy:test": "pnpm --filter @workspace/backend test:compatibility"
   },
   "devDependencies": {
     "@workspace/eslint-config": "workspace:*",
@@ -46,7 +47,11 @@
       "ip-address@10.2.0": "10.3.1",
       "nanoid@3.3.11": "3.3.18",
       "source-map-js@1.2.1": "1.2.2",
-      "@babel/helper-compilation-targets@7.28.6>browserslist": "4.29.3"
+      "@babel/helper-compilation-targets@7.28.6>browserslist": "4.29.3",
+      "@ai-sdk/provider-utils@3.0.44>undici": "6.29.1"
+    },
+    "patchedDependencies": {
+      "@convex-dev/agent@0.2.12": "patches/@convex-dev__agent@0.2.12.patch"
     }
   }
 }

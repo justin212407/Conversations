@@ -62,6 +62,8 @@ A free repository-wide lockfile/dependency audit reports current advisories, aff
 
 No automatic audit fixes, blanket ignores, ignore-registry-errors, unrelated upgrades or paid scanning are introduced to make the gate green. Record unresolved advisories and scoped remediation ownership; findings that depend on the pending frontend feature remain visible under #25. An audit failure is not a passing gate even when the independent test foundation can be reviewed separately. The runbook identifies required commands, their actual local results, the hosted-execution exception and remaining browser/voice/deployment evidence.
 
+The audit adapter interprets the pinned pnpm 10.4.1 JSON result rather than treating every exit code 1 as a high/critical finding or registry failure. In JSON mode pnpm returns 1 for any reported vulnerability, including only lower severities, before applying the text-mode severity filter. A complete valid lower-only report may satisfy this repository's high/critical threshold while retaining those findings in its output. High/critical metadata or advisory records still fail the gate even if pnpm exits 0. Error/malformed reports, unsupported process exits and exit 1 with an empty zero-vulnerability report remain unavailable/nonzero. This does not permit ignoring registry errors, advisories, dependency owners or any severity required by the gate.
+
 ## Primary guidance
 
 - [Docker Compose project names](https://docs.docker.com/compose/how-tos/project-name/) describe run isolation and explicit project precedence.

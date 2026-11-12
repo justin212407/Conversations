@@ -12,7 +12,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@convex-dev/agent": "0.1.16",
+    "@convex-dev/agent": "0.2.12",
     "@hookform/resolvers": "^5.2.0",
     "@vapi-ai/web": "^2.5.2",
     "@workspace/backend": "workspace:*",
@@ -28,8 +28,10 @@
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "react-hook-form": "^7.78.0",
-    "zod": "^3.25.67",
-    "hono": "4.12.25"
+    "zod": "4.6.7",
+    "hono": "4.12.25",
+    "ai": "5.0.285",
+    "@ai-sdk/provider-utils": "3.0.44"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.18",

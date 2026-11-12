@@ -1,10 +1,11 @@
 import { z } from "zod"
+import { uuidSchema } from "@conversations/shared"
 
 export const pendingSchema = z.discriminatedUnion("kind", [
   z
     .object({
       kind: z.literal("text"),
-      clientRequestId: z.string().uuid(),
+      clientRequestId: uuidSchema,
       content: z
         .string()
         .refine(
@@ -18,16 +19,16 @@ export const pendingSchema = z.discriminatedUnion("kind", [
   z
     .object({
       kind: z.literal("retry"),
-      clientRequestId: z.string().uuid(),
-      operationId: z.string().uuid(),
+      clientRequestId: uuidSchema,
+      operationId: uuidSchema,
     })
     .strict(),
 ])
 export type PendingIntent = z.infer<typeof pendingSchema>
 const recordSchema = z
   .object({
-    accountId: z.string().uuid(),
-    conversationId: z.string().uuid(),
+    accountId: uuidSchema,
+    conversationId: uuidSchema,
     intent: pendingSchema,
   })
   .strict()

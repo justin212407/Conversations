@@ -1,24 +1,26 @@
 import { z } from "zod"
 import {
+  uuidSchema,
+  utcTimestampSchema,
   messageDataSchema,
   operationAdmissionSchema,
 } from "@conversations/shared"
 
 export const conversationSchema = z
   .object({
-    id: z.string().uuid(),
+    id: uuidSchema,
     title: z.string(),
     status: z.enum(["active", "archived"]),
-    createdAt: z.string().datetime(),
-    updatedAt: z.string().datetime(),
+    createdAt: utcTimestampSchema,
+    updatedAt: utcTimestampSchema,
   })
   .strict()
 export type Conversation = z.infer<typeof conversationSchema>
 const accountSchema = z
   .object({
-    id: z.string().uuid(),
-    createdAt: z.string().datetime(),
-    updatedAt: z.string().datetime(),
+    id: uuidSchema,
+    createdAt: utcTimestampSchema,
+    updatedAt: utcTimestampSchema,
   })
   .strict()
 const conversationPage = z

@@ -1,0 +1,2740 @@
+{
+  "source": "@convex-dev/agent 0.1.16 published component",
+  "tables": {
+    "threads": {
+      "validator": {
+        "type": "object",
+        "value": {
+          "userId": {
+            "fieldType": {
+              "type": "string"
+            },
+            "optional": true
+          },
+          "title": {
+            "fieldType": {
+              "type": "string"
+            },
+            "optional": true
+          },
+          "summary": {
+            "fieldType": {
+              "type": "string"
+            },
+            "optional": true
+          },
+          "status": {
+            "fieldType": {
+              "type": "union",
+              "value": [
+                {
+                  "type": "literal",
+                  "value": "active"
+                },
+                {
+                  "type": "literal",
+                  "value": "archived"
+                }
+              ]
+            },
+            "optional": false
+          },
+          "defaultSystemPrompt": {
+            "fieldType": {
+              "type": "string"
+            },
+            "optional": true
+          },
+          "parentThreadIds": {
+            "fieldType": {
+              "type": "array",
+              "value": {
+                "type": "id",
+                "tableName": "threads"
+              }
+            },
+            "optional": true
+          },
+          "order": {
+            "fieldType": {
+              "type": "number"
+            },
+            "optional": true
+          }
+        }
+      },
+      "indexes": [
+        {
+          "indexDescriptor": "userId",
+          "fields": ["userId"]
+        }
+      ],
+      "searchIndexes": [
+        {
+          "indexDescriptor": "title",
+          "searchField": "title",
+          "filterFields": ["userId"]
+        }
+      ],
+      "vectorIndexes": []
+    },
+    "messages": {
+      "validator": {
+        "type": "object",
+        "value": {
+          "id": {
+            "fieldType": {
+              "type": "string"
+            },
+            "optional": true
+          },
+          "userId": {
+            "fieldType": {
+              "type": "string"
+            },
+            "optional": true
+          },
+          "threadId": {
+            "fieldType": {
+              "type": "id",
+              "tableName": "threads"
+            },
+            "optional": false
+          },
+          "order": {
+            "fieldType": {
+              "type": "number"
+            },
+            "optional": false
+          },
+          "stepOrder": {
+            "fieldType": {
+              "type": "number"
+            },
+            "optional": false
+          },
+          "embeddingId": {
+            "fieldType": {
+              "type": "union",
+              "value": [
+                {
+                  "type": "id",
+                  "tableName": "embeddings_128"
+                },
+                {
+                  "type": "id",
+                  "tableName": "embeddings_256"
+                },
+                {
+                  "type": "id",
+                  "tableName": "embeddings_512"
+                },
+                {
+                  "type": "id",
+                  "tableName": "embeddings_768"
+                },
+                {
+                  "type": "id",
+                  "tableName": "embeddings_1024"
+                },
+                {
+                  "type": "id",
+                  "tableName": "embeddings_1408"
+                },
+                {
+                  "type": "id",
+                  "tableName": "embeddings_1536"
+                },
+                {
+                  "type": "id",
+                  "tableName": "embeddings_2048"
+                },
+                {
+                  "type": "id",
+                  "tableName": "embeddings_3072"
+                },
+                {
+                  "type": "id",
+                  "tableName": "embeddings_4096"
+                }
+              ]
+            },
+            "optional": true
+          },
+          "fileIds": {
+            "fieldType": {
+              "type": "array",
+              "value": {
+                "type": "id",
+                "tableName": "files"
+              }
+            },
+            "optional": true
+          },
+          "error": {
+            "fieldType": {
+              "type": "string"
+            },
+            "optional": true
+          },
+          "status": {
+            "fieldType": {
+              "type": "union",
+              "value": [
+                {
+                  "type": "literal",
+                  "value": "pending"
+                },
+                {
+                  "type": "literal",
+                  "value": "success"
+                },
+                {
+                  "type": "literal",
+                  "value": "failed"
+                }
+              ]
+            },
+            "optional": false
+          },
+          "agentName": {
+            "fieldType": {
+              "type": "string"
+            },
+            "optional": true
+          },
+          "model": {
+            "fieldType": {
+              "type": "string"
+            },
+            "optional": true
+          },
+          "provider": {
+            "fieldType": {
+              "type": "string"
+            },
+            "optional": true
+          },
+          "providerOptions": {
+            "fieldType": {
+              "type": "record",
+              "keys": {
+                "type": "string"
+              },
+              "values": {
+                "fieldType": {
+                  "type": "record",
+                  "keys": {
+                    "type": "string"
+                  },
+                  "values": {
+                    "fieldType": {
+                      "type": "any"
+                    },
+                    "optional": false
+                  }
+                },
+                "optional": false
+              }
+            },
+            "optional": true
+          },
+          "message": {
+            "fieldType": {
+              "type": "union",
+              "value": [
+                {
+                  "type": "object",
+                  "value": {
+                    "role": {
+                      "fieldType": {
+                        "type": "literal",
+                        "value": "user"
+                      },
+                      "optional": false
+                    },
+                    "content": {
+                      "fieldType": {
+                        "type": "union",
+                        "value": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "array",
+                            "value": {
+                              "type": "union",
+                              "value": [
+                                {
+                                  "type": "object",
+                                  "value": {
+                                    "type": {
+                                      "fieldType": {
+                                        "type": "literal",
+                                        "value": "text"
+                                      },
+                                      "optional": false
+                                    },
+                                    "text": {
+                                      "fieldType": {
+                                        "type": "string"
+                                      },
+                                      "optional": false
+                                    },
+                                    "providerOptions": {
+                                      "fieldType": {
+                                        "type": "record",
+                                        "keys": {
+                                          "type": "string"
+                                        },
+                                        "values": {
+                                          "fieldType": {
+                                            "type": "record",
+                                            "keys": {
+                                              "type": "string"
+                                            },
+                                            "values": {
+                                              "fieldType": {
+                                                "type": "any"
+                                              },
+                                              "optional": false
+                                            }
+                                          },
+                                          "optional": false
+                                        }
+                                      },
+                                      "optional": true
+                                    }
+                                  }
+                                },
+                                {
+                                  "type": "object",
+                                  "value": {
+                                    "type": {
+                                      "fieldType": {
+                                        "type": "literal",
+                                        "value": "image"
+                                      },
+                                      "optional": false
+                                    },
+                                    "image": {
+                                      "fieldType": {
+                                        "type": "union",
+                                        "value": [
+                                          {
+                                            "type": "string"
+                                          },
+                                          {
+                                            "type": "bytes"
+                                          }
+                                        ]
+                                      },
+                                      "optional": false
+                                    },
+                                    "mimeType": {
+                                      "fieldType": {
+                                        "type": "string"
+                                      },
+                                      "optional": true
+                                    },
+                                    "providerOptions": {
+                                      "fieldType": {
+                                        "type": "record",
+                                        "keys": {
+                                          "type": "string"
+                                        },
+                                        "values": {
+                                          "fieldType": {
+                                            "type": "record",
+                                            "keys": {
+                                              "type": "string"
+                                            },
+                                            "values": {
+                                              "fieldType": {
+                                                "type": "any"
+                                              },
+                                              "optional": false
+                                            }
+                                          },
+                                          "optional": false
+                                        }
+                                      },
+                                      "optional": true
+                                    }
+                                  }
+                                },
+                                {
+                                  "type": "object",
+                                  "value": {
+                                    "type": {
+                                      "fieldType": {
+                                        "type": "literal",
+                                        "value": "file"
+                                      },
+                                      "optional": false
+                                    },
+                                    "data": {
+                                      "fieldType": {
+                                        "type": "union",
+                                        "value": [
+                                          {
+                                            "type": "string"
+                                          },
+                                          {
+                                            "type": "bytes"
+                                          }
+                                        ]
+                                      },
+                                      "optional": false
+                                    },
+                                    "filename": {
+                                      "fieldType": {
+                                        "type": "string"
+                                      },
+                                      "optional": true
+                                    },
+                                    "mimeType": {
+                                      "fieldType": {
+                                        "type": "string"
+                                      },
+                                      "optional": false
+                                    },
+                                    "providerOptions": {
+                                      "fieldType": {
+                                        "type": "record",
+                                        "keys": {
+                                          "type": "string"
+                                        },
+                                        "values": {
+                                          "fieldType": {
+                                            "type": "record",
+                                            "keys": {
+                                              "type": "string"
+                                            },
+                                            "values": {
+                                              "fieldType": {
+                                                "type": "any"
+                                              },
+                                              "optional": false
+                                            }
+                                          },
+                                          "optional": false
+                                        }
+                                      },
+                                      "optional": true
+                                    }
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        ]
+                      },
+                      "optional": false
+                    },
+                    "providerOptions": {
+                      "fieldType": {
+                        "type": "record",
+                        "keys": {
+                          "type": "string"
+                        },
+                        "values": {
+                          "fieldType": {
+                            "type": "record",
+                            "keys": {
+                              "type": "string"
+                            },
+                            "values": {
+                              "fieldType": {
+                                "type": "any"
+                              },
+                              "optional": false
+                            }
+                          },
+                          "optional": false
+                        }
+                      },
+                      "optional": true
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "value": {
+                    "role": {
+                      "fieldType": {
+                        "type": "literal",
+                        "value": "assistant"
+                      },
+                      "optional": false
+                    },
+                    "content": {
+                      "fieldType": {
+                        "type": "union",
+                        "value": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "array",
+                            "value": {
+                              "type": "union",
+                              "value": [
+                                {
+                                  "type": "object",
+                                  "value": {
+                                    "type": {
+                                      "fieldType": {
+                                        "type": "literal",
+                                        "value": "text"
+                                      },
+                                      "optional": false
+                                    },
+                                    "text": {
+                                      "fieldType": {
+                                        "type": "string"
+                                      },
+                                      "optional": false
+                                    },
+                                    "providerOptions": {
+                                      "fieldType": {
+                                        "type": "record",
+                                        "keys": {
+                                          "type": "string"
+                                        },
+                                        "values": {
+                                          "fieldType": {
+                                            "type": "record",
+                                            "keys": {
+                                              "type": "string"
+                                            },
+                                            "values": {
+                                              "fieldType": {
+                                                "type": "any"
+                                              },
+                                              "optional": false
+                                            }
+                                          },
+                                          "optional": false
+                                        }
+                                      },
+                                      "optional": true
+                                    }
+                                  }
+                                },
+                                {
+                                  "type": "object",
+                                  "value": {
+                                    "type": {
+                                      "fieldType": {
+                                        "type": "literal",
+                                        "value": "file"
+                                      },
+                                      "optional": false
+                                    },
+                                    "data": {
+                                      "fieldType": {
+                                        "type": "union",
+                                        "value": [
+                                          {
+                                            "type": "string"
+                                          },
+                                          {
+                                            "type": "bytes"
+                                          }
+                                        ]
+                                      },
+                                      "optional": false
+                                    },
+                                    "filename": {
+                                      "fieldType": {
+                                        "type": "string"
+                                      },
+                                      "optional": true
+                                    },
+                                    "mimeType": {
+                                      "fieldType": {
+                                        "type": "string"
+                                      },
+                                      "optional": false
+                                    },
+                                    "providerOptions": {
+                                      "fieldType": {
+                                        "type": "record",
+                                        "keys": {
+                                          "type": "string"
+                                        },
+                                        "values": {
+                                          "fieldType": {
+                                            "type": "record",
+                                            "keys": {
+                                              "type": "string"
+                                            },
+                                            "values": {
+                                              "fieldType": {
+                                                "type": "any"
+                                              },
+                                              "optional": false
+                                            }
+                                          },
+                                          "optional": false
+                                        }
+                                      },
+                                      "optional": true
+                                    }
+                                  }
+                                },
+                                {
+                                  "type": "object",
+                                  "value": {
+                                    "type": {
+                                      "fieldType": {
+                                        "type": "literal",
+                                        "value": "reasoning"
+                                      },
+                                      "optional": false
+                                    },
+                                    "text": {
+                                      "fieldType": {
+                                        "type": "string"
+                                      },
+                                      "optional": false
+                                    },
+                                    "signature": {
+                                      "fieldType": {
+                                        "type": "string"
+                                      },
+                                      "optional": true
+                                    },
+                                    "providerOptions": {
+                                      "fieldType": {
+                                        "type": "record",
+                                        "keys": {
+                                          "type": "string"
+                                        },
+                                        "values": {
+                                          "fieldType": {
+                                            "type": "record",
+                                            "keys": {
+                                              "type": "string"
+                                            },
+                                            "values": {
+                                              "fieldType": {
+                                                "type": "any"
+                                              },
+                                              "optional": false
+                                            }
+                                          },
+                                          "optional": false
+                                        }
+                                      },
+                                      "optional": true
+                                    }
+                                  }
+                                },
+                                {
+                                  "type": "object",
+                                  "value": {
+                                    "type": {
+                                      "fieldType": {
+                                        "type": "literal",
+                                        "value": "redacted-reasoning"
+                                      },
+                                      "optional": false
+                                    },
+                                    "data": {
+                                      "fieldType": {
+                                        "type": "string"
+                                      },
+                                      "optional": false
+                                    },
+                                    "providerOptions": {
+                                      "fieldType": {
+                                        "type": "record",
+                                        "keys": {
+                                          "type": "string"
+                                        },
+                                        "values": {
+                                          "fieldType": {
+                                            "type": "record",
+                                            "keys": {
+                                              "type": "string"
+                                            },
+                                            "values": {
+                                              "fieldType": {
+                                                "type": "any"
+                                              },
+                                              "optional": false
+                                            }
+                                          },
+                                          "optional": false
+                                        }
+                                      },
+                                      "optional": true
+                                    }
+                                  }
+                                },
+                                {
+                                  "type": "object",
+                                  "value": {
+                                    "type": {
+                                      "fieldType": {
+                                        "type": "literal",
+                                        "value": "tool-call"
+                                      },
+                                      "optional": false
+                                    },
+                                    "toolCallId": {
+                                      "fieldType": {
+                                        "type": "string"
+                                      },
+                                      "optional": false
+                                    },
+                                    "toolName": {
+                                      "fieldType": {
+                                        "type": "string"
+                                      },
+                                      "optional": false
+                                    },
+                                    "args": {
+                                      "fieldType": {
+                                        "type": "any"
+                                      },
+                                      "optional": false
+                                    },
+                                    "providerOptions": {
+                                      "fieldType": {
+                                        "type": "record",
+                                        "keys": {
+                                          "type": "string"
+                                        },
+                                        "values": {
+                                          "fieldType": {
+                                            "type": "record",
+                                            "keys": {
+                                              "type": "string"
+                                            },
+                                            "values": {
+                                              "fieldType": {
+                                                "type": "any"
+                                              },
+                                              "optional": false
+                                            }
+                                          },
+                                          "optional": false
+                                        }
+                                      },
+                                      "optional": true
+                                    }
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        ]
+                      },
+                      "optional": false
+                    },
+                    "providerOptions": {
+                      "fieldType": {
+                        "type": "record",
+                        "keys": {
+                          "type": "string"
+                        },
+                        "values": {
+                          "fieldType": {
+                            "type": "record",
+                            "keys": {
+                              "type": "string"
+                            },
+                            "values": {
+                              "fieldType": {
+                                "type": "any"
+                              },
+                              "optional": false
+                            }
+                          },
+                          "optional": false
+                        }
+                      },
+                      "optional": true
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "value": {
+                    "role": {
+                      "fieldType": {
+                        "type": "literal",
+                        "value": "tool"
+                      },
+                      "optional": false
+                    },
+                    "content": {
+                      "fieldType": {
+                        "type": "array",
+                        "value": {
+                          "type": "object",
+                          "value": {
+                            "type": {
+                              "fieldType": {
+                                "type": "literal",
+                                "value": "tool-result"
+                              },
+                              "optional": false
+                            },
+                            "toolCallId": {
+                              "fieldType": {
+                                "type": "string"
+                              },
+                              "optional": false
+                            },
+                            "toolName": {
+                              "fieldType": {
+                                "type": "string"
+                              },
+                              "optional": false
+                            },
+                            "result": {
+                              "fieldType": {
+                                "type": "any"
+                              },
+                              "optional": false
+                            },
+                            "args": {
+                              "fieldType": {
+                                "type": "any"
+                              },
+                              "optional": true
+                            },
+                            "experimental_content": {
+                              "fieldType": {
+                                "type": "array",
+                                "value": {
+                                  "type": "union",
+                                  "value": [
+                                    {
+                                      "type": "object",
+                                      "value": {
+                                        "type": {
+                                          "fieldType": {
+                                            "type": "literal",
+                                            "value": "text"
+                                          },
+                                          "optional": false
+                                        },
+                                        "text": {
+                                          "fieldType": {
+                                            "type": "string"
+                                          },
+                                          "optional": false
+                                        }
+                                      }
+                                    },
+                                    {
+                                      "type": "object",
+                                      "value": {
+                                        "type": {
+                                          "fieldType": {
+                                            "type": "literal",
+                                            "value": "image"
+                                          },
+                                          "optional": false
+                                        },
+                                        "data": {
+                                          "fieldType": {
+                                            "type": "string"
+                                          },
+                                          "optional": false
+                                        },
+                                        "mimeType": {
+                                          "fieldType": {
+                                            "type": "string"
+                                          },
+                                          "optional": true
+                                        }
+                                      }
+                                    }
+                                  ]
+                                }
+                              },
+                              "optional": true
+                            },
+                            "isError": {
+                              "fieldType": {
+                                "type": "boolean"
+                              },
+                              "optional": true
+                            },
+                            "providerOptions": {
+                              "fieldType": {
+                                "type": "record",
+                                "keys": {
+                                  "type": "string"
+                                },
+                                "values": {
+                                  "fieldType": {
+                                    "type": "record",
+                                    "keys": {
+                                      "type": "string"
+                                    },
+                                    "values": {
+                                      "fieldType": {
+                                        "type": "any"
+                                      },
+                                      "optional": false
+                                    }
+                                  },
+                                  "optional": false
+                                }
+                              },
+                              "optional": true
+                            }
+                          }
+                        }
+                      },
+                      "optional": false
+                    },
+                    "providerOptions": {
+                      "fieldType": {
+                        "type": "record",
+                        "keys": {
+                          "type": "string"
+                        },
+                        "values": {
+                          "fieldType": {
+                            "type": "record",
+                            "keys": {
+                              "type": "string"
+                            },
+                            "values": {
+                              "fieldType": {
+                                "type": "any"
+                              },
+                              "optional": false
+                            }
+                          },
+                          "optional": false
+                        }
+                      },
+                      "optional": true
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "value": {
+                    "role": {
+                      "fieldType": {
+                        "type": "literal",
+                        "value": "system"
+                      },
+                      "optional": false
+                    },
+                    "content": {
+                      "fieldType": {
+                        "type": "string"
+                      },
+                      "optional": false
+                    },
+                    "providerOptions": {
+                      "fieldType": {
+                        "type": "record",
+                        "keys": {
+                          "type": "string"
+                        },
+                        "values": {
+                          "fieldType": {
+                            "type": "record",
+                            "keys": {
+                              "type": "string"
+                            },
+                            "values": {
+                              "fieldType": {
+                                "type": "any"
+                              },
+                              "optional": false
+                            }
+                          },
+                          "optional": false
+                        }
+                      },
+                      "optional": true
+                    }
+                  }
+                }
+              ]
+            },
+            "optional": true
+          },
+          "tool": {
+            "fieldType": {
+              "type": "boolean"
+            },
+            "optional": false
+          },
+          "text": {
+            "fieldType": {
+              "type": "string"
+            },
+            "optional": true
+          },
+          "usage": {
+            "fieldType": {
+              "type": "object",
+              "value": {
+                "promptTokens": {
+                  "fieldType": {
+                    "type": "number"
+                  },
+                  "optional": false
+                },
+                "completionTokens": {
+                  "fieldType": {
+                    "type": "number"
+                  },
+                  "optional": false
+                },
+                "totalTokens": {
+                  "fieldType": {
+                    "type": "number"
+                  },
+                  "optional": false
+                }
+              }
+            },
+            "optional": true
+          },
+          "providerMetadata": {
+            "fieldType": {
+              "type": "record",
+              "keys": {
+                "type": "string"
+              },
+              "values": {
+                "fieldType": {
+                  "type": "record",
+                  "keys": {
+                    "type": "string"
+                  },
+                  "values": {
+                    "fieldType": {
+                      "type": "any"
+                    },
+                    "optional": false
+                  }
+                },
+                "optional": false
+              }
+            },
+            "optional": true
+          },
+          "sources": {
+            "fieldType": {
+              "type": "array",
+              "value": {
+                "type": "object",
+                "value": {
+                  "sourceType": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "url"
+                    },
+                    "optional": false
+                  },
+                  "id": {
+                    "fieldType": {
+                      "type": "string"
+                    },
+                    "optional": false
+                  },
+                  "url": {
+                    "fieldType": {
+                      "type": "string"
+                    },
+                    "optional": false
+                  },
+                  "title": {
+                    "fieldType": {
+                      "type": "string"
+                    },
+                    "optional": true
+                  },
+                  "providerOptions": {
+                    "fieldType": {
+                      "type": "record",
+                      "keys": {
+                        "type": "string"
+                      },
+                      "values": {
+                        "fieldType": {
+                          "type": "record",
+                          "keys": {
+                            "type": "string"
+                          },
+                          "values": {
+                            "fieldType": {
+                              "type": "any"
+                            },
+                            "optional": false
+                          }
+                        },
+                        "optional": false
+                      }
+                    },
+                    "optional": true
+                  }
+                }
+              }
+            },
+            "optional": true
+          },
+          "reasoning": {
+            "fieldType": {
+              "type": "string"
+            },
+            "optional": true
+          },
+          "reasoningDetails": {
+            "fieldType": {
+              "type": "array",
+              "value": {
+                "type": "union",
+                "value": [
+                  {
+                    "type": "object",
+                    "value": {
+                      "type": {
+                        "fieldType": {
+                          "type": "literal",
+                          "value": "text"
+                        },
+                        "optional": false
+                      },
+                      "text": {
+                        "fieldType": {
+                          "type": "string"
+                        },
+                        "optional": false
+                      },
+                      "signature": {
+                        "fieldType": {
+                          "type": "string"
+                        },
+                        "optional": true
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "value": {
+                      "type": {
+                        "fieldType": {
+                          "type": "literal",
+                          "value": "redacted"
+                        },
+                        "optional": false
+                      },
+                      "data": {
+                        "fieldType": {
+                          "type": "string"
+                        },
+                        "optional": false
+                      }
+                    }
+                  }
+                ]
+              }
+            },
+            "optional": true
+          },
+          "warnings": {
+            "fieldType": {
+              "type": "array",
+              "value": {
+                "type": "union",
+                "value": [
+                  {
+                    "type": "object",
+                    "value": {
+                      "type": {
+                        "fieldType": {
+                          "type": "literal",
+                          "value": "unsupported-setting"
+                        },
+                        "optional": false
+                      },
+                      "setting": {
+                        "fieldType": {
+                          "type": "string"
+                        },
+                        "optional": false
+                      },
+                      "details": {
+                        "fieldType": {
+                          "type": "string"
+                        },
+                        "optional": true
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "value": {
+                      "type": {
+                        "fieldType": {
+                          "type": "literal",
+                          "value": "unsupported-tool"
+                        },
+                        "optional": false
+                      },
+                      "tool": {
+                        "fieldType": {
+                          "type": "any"
+                        },
+                        "optional": false
+                      },
+                      "details": {
+                        "fieldType": {
+                          "type": "string"
+                        },
+                        "optional": true
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "value": {
+                      "type": {
+                        "fieldType": {
+                          "type": "literal",
+                          "value": "other"
+                        },
+                        "optional": false
+                      },
+                      "message": {
+                        "fieldType": {
+                          "type": "string"
+                        },
+                        "optional": false
+                      }
+                    }
+                  }
+                ]
+              }
+            },
+            "optional": true
+          },
+          "finishReason": {
+            "fieldType": {
+              "type": "union",
+              "value": [
+                {
+                  "type": "literal",
+                  "value": "stop"
+                },
+                {
+                  "type": "literal",
+                  "value": "length"
+                },
+                {
+                  "type": "literal",
+                  "value": "content-filter"
+                },
+                {
+                  "type": "literal",
+                  "value": "tool-calls"
+                },
+                {
+                  "type": "literal",
+                  "value": "error"
+                },
+                {
+                  "type": "literal",
+                  "value": "other"
+                },
+                {
+                  "type": "literal",
+                  "value": "unknown"
+                }
+              ]
+            },
+            "optional": true
+          },
+          "parentMessageId": {
+            "fieldType": {
+              "type": "id",
+              "tableName": "messages"
+            },
+            "optional": true
+          },
+          "stepId": {
+            "fieldType": {
+              "type": "string"
+            },
+            "optional": true
+          },
+          "files": {
+            "fieldType": {
+              "type": "array",
+              "value": {
+                "type": "any"
+              }
+            },
+            "optional": true
+          }
+        }
+      },
+      "indexes": [
+        {
+          "indexDescriptor": "threadId_status_tool_order_stepOrder",
+          "fields": ["threadId", "status", "tool", "order", "stepOrder"]
+        },
+        {
+          "indexDescriptor": "embeddingId_threadId",
+          "fields": ["embeddingId", "threadId"]
+        }
+      ],
+      "searchIndexes": [
+        {
+          "indexDescriptor": "text_search",
+          "searchField": "text",
+          "filterFields": ["userId", "threadId"]
+        }
+      ],
+      "vectorIndexes": []
+    },
+    "streamingMessages": {
+      "validator": {
+        "type": "object",
+        "value": {
+          "userId": {
+            "fieldType": {
+              "type": "string"
+            },
+            "optional": true
+          },
+          "agentName": {
+            "fieldType": {
+              "type": "string"
+            },
+            "optional": true
+          },
+          "model": {
+            "fieldType": {
+              "type": "string"
+            },
+            "optional": true
+          },
+          "provider": {
+            "fieldType": {
+              "type": "string"
+            },
+            "optional": true
+          },
+          "providerOptions": {
+            "fieldType": {
+              "type": "record",
+              "keys": {
+                "type": "string"
+              },
+              "values": {
+                "fieldType": {
+                  "type": "record",
+                  "keys": {
+                    "type": "string"
+                  },
+                  "values": {
+                    "fieldType": {
+                      "type": "any"
+                    },
+                    "optional": false
+                  }
+                },
+                "optional": false
+              }
+            },
+            "optional": true
+          },
+          "threadId": {
+            "fieldType": {
+              "type": "id",
+              "tableName": "threads"
+            },
+            "optional": false
+          },
+          "order": {
+            "fieldType": {
+              "type": "number"
+            },
+            "optional": false
+          },
+          "stepOrder": {
+            "fieldType": {
+              "type": "number"
+            },
+            "optional": false
+          },
+          "state": {
+            "fieldType": {
+              "type": "union",
+              "value": [
+                {
+                  "type": "object",
+                  "value": {
+                    "kind": {
+                      "fieldType": {
+                        "type": "literal",
+                        "value": "streaming"
+                      },
+                      "optional": false
+                    },
+                    "lastHeartbeat": {
+                      "fieldType": {
+                        "type": "number"
+                      },
+                      "optional": false
+                    },
+                    "timeoutFnId": {
+                      "fieldType": {
+                        "type": "id",
+                        "tableName": "_scheduled_functions"
+                      },
+                      "optional": true
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "value": {
+                    "kind": {
+                      "fieldType": {
+                        "type": "literal",
+                        "value": "finished"
+                      },
+                      "optional": false
+                    },
+                    "endedAt": {
+                      "fieldType": {
+                        "type": "number"
+                      },
+                      "optional": false
+                    },
+                    "cleanupFnId": {
+                      "fieldType": {
+                        "type": "id",
+                        "tableName": "_scheduled_functions"
+                      },
+                      "optional": true
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "value": {
+                    "kind": {
+                      "fieldType": {
+                        "type": "literal",
+                        "value": "aborted"
+                      },
+                      "optional": false
+                    },
+                    "reason": {
+                      "fieldType": {
+                        "type": "string"
+                      },
+                      "optional": false
+                    }
+                  }
+                }
+              ]
+            },
+            "optional": false
+          }
+        }
+      },
+      "indexes": [
+        {
+          "indexDescriptor": "threadId_state_order_stepOrder",
+          "fields": ["threadId", "state.kind", "order", "stepOrder"]
+        }
+      ],
+      "searchIndexes": [],
+      "vectorIndexes": []
+    },
+    "streamDeltas": {
+      "validator": {
+        "type": "object",
+        "value": {
+          "streamId": {
+            "fieldType": {
+              "type": "id",
+              "tableName": "streamingMessages"
+            },
+            "optional": false
+          },
+          "start": {
+            "fieldType": {
+              "type": "number"
+            },
+            "optional": false
+          },
+          "end": {
+            "fieldType": {
+              "type": "number"
+            },
+            "optional": false
+          },
+          "parts": {
+            "fieldType": {
+              "type": "array",
+              "value": {
+                "type": "union",
+                "value": [
+                  {
+                    "type": "object",
+                    "value": {
+                      "type": {
+                        "fieldType": {
+                          "type": "literal",
+                          "value": "text-delta"
+                        },
+                        "optional": false
+                      },
+                      "textDelta": {
+                        "fieldType": {
+                          "type": "string"
+                        },
+                        "optional": false
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "value": {
+                      "type": {
+                        "fieldType": {
+                          "type": "literal",
+                          "value": "reasoning"
+                        },
+                        "optional": false
+                      },
+                      "textDelta": {
+                        "fieldType": {
+                          "type": "string"
+                        },
+                        "optional": false
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "value": {
+                      "type": {
+                        "fieldType": {
+                          "type": "literal",
+                          "value": "source"
+                        },
+                        "optional": false
+                      },
+                      "source": {
+                        "fieldType": {
+                          "type": "object",
+                          "value": {
+                            "sourceType": {
+                              "fieldType": {
+                                "type": "literal",
+                                "value": "url"
+                              },
+                              "optional": false
+                            },
+                            "id": {
+                              "fieldType": {
+                                "type": "string"
+                              },
+                              "optional": false
+                            },
+                            "url": {
+                              "fieldType": {
+                                "type": "string"
+                              },
+                              "optional": false
+                            },
+                            "title": {
+                              "fieldType": {
+                                "type": "string"
+                              },
+                              "optional": true
+                            },
+                            "providerOptions": {
+                              "fieldType": {
+                                "type": "record",
+                                "keys": {
+                                  "type": "string"
+                                },
+                                "values": {
+                                  "fieldType": {
+                                    "type": "record",
+                                    "keys": {
+                                      "type": "string"
+                                    },
+                                    "values": {
+                                      "fieldType": {
+                                        "type": "any"
+                                      },
+                                      "optional": false
+                                    }
+                                  },
+                                  "optional": false
+                                }
+                              },
+                              "optional": true
+                            }
+                          }
+                        },
+                        "optional": false
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "value": {
+                      "type": {
+                        "fieldType": {
+                          "type": "literal",
+                          "value": "tool-call"
+                        },
+                        "optional": false
+                      },
+                      "toolCallId": {
+                        "fieldType": {
+                          "type": "string"
+                        },
+                        "optional": false
+                      },
+                      "toolName": {
+                        "fieldType": {
+                          "type": "string"
+                        },
+                        "optional": false
+                      },
+                      "args": {
+                        "fieldType": {
+                          "type": "any"
+                        },
+                        "optional": false
+                      },
+                      "providerOptions": {
+                        "fieldType": {
+                          "type": "record",
+                          "keys": {
+                            "type": "string"
+                          },
+                          "values": {
+                            "fieldType": {
+                              "type": "record",
+                              "keys": {
+                                "type": "string"
+                              },
+                              "values": {
+                                "fieldType": {
+                                  "type": "any"
+                                },
+                                "optional": false
+                              }
+                            },
+                            "optional": false
+                          }
+                        },
+                        "optional": true
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "value": {
+                      "type": {
+                        "fieldType": {
+                          "type": "literal",
+                          "value": "tool-call-streaming-start"
+                        },
+                        "optional": false
+                      },
+                      "toolCallId": {
+                        "fieldType": {
+                          "type": "string"
+                        },
+                        "optional": false
+                      },
+                      "toolName": {
+                        "fieldType": {
+                          "type": "string"
+                        },
+                        "optional": false
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "value": {
+                      "type": {
+                        "fieldType": {
+                          "type": "literal",
+                          "value": "tool-call-delta"
+                        },
+                        "optional": false
+                      },
+                      "toolCallId": {
+                        "fieldType": {
+                          "type": "string"
+                        },
+                        "optional": false
+                      },
+                      "toolName": {
+                        "fieldType": {
+                          "type": "string"
+                        },
+                        "optional": false
+                      },
+                      "argsTextDelta": {
+                        "fieldType": {
+                          "type": "string"
+                        },
+                        "optional": false
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "value": {
+                      "type": {
+                        "fieldType": {
+                          "type": "literal",
+                          "value": "tool-result"
+                        },
+                        "optional": false
+                      },
+                      "toolCallId": {
+                        "fieldType": {
+                          "type": "string"
+                        },
+                        "optional": false
+                      },
+                      "toolName": {
+                        "fieldType": {
+                          "type": "string"
+                        },
+                        "optional": false
+                      },
+                      "result": {
+                        "fieldType": {
+                          "type": "any"
+                        },
+                        "optional": false
+                      },
+                      "args": {
+                        "fieldType": {
+                          "type": "any"
+                        },
+                        "optional": true
+                      },
+                      "experimental_content": {
+                        "fieldType": {
+                          "type": "array",
+                          "value": {
+                            "type": "union",
+                            "value": [
+                              {
+                                "type": "object",
+                                "value": {
+                                  "type": {
+                                    "fieldType": {
+                                      "type": "literal",
+                                      "value": "text"
+                                    },
+                                    "optional": false
+                                  },
+                                  "text": {
+                                    "fieldType": {
+                                      "type": "string"
+                                    },
+                                    "optional": false
+                                  }
+                                }
+                              },
+                              {
+                                "type": "object",
+                                "value": {
+                                  "type": {
+                                    "fieldType": {
+                                      "type": "literal",
+                                      "value": "image"
+                                    },
+                                    "optional": false
+                                  },
+                                  "data": {
+                                    "fieldType": {
+                                      "type": "string"
+                                    },
+                                    "optional": false
+                                  },
+                                  "mimeType": {
+                                    "fieldType": {
+                                      "type": "string"
+                                    },
+                                    "optional": true
+                                  }
+                                }
+                              }
+                            ]
+                          }
+                        },
+                        "optional": true
+                      },
+                      "isError": {
+                        "fieldType": {
+                          "type": "boolean"
+                        },
+                        "optional": true
+                      },
+                      "providerOptions": {
+                        "fieldType": {
+                          "type": "record",
+                          "keys": {
+                            "type": "string"
+                          },
+                          "values": {
+                            "fieldType": {
+                              "type": "record",
+                              "keys": {
+                                "type": "string"
+                              },
+                              "values": {
+                                "fieldType": {
+                                  "type": "any"
+                                },
+                                "optional": false
+                              }
+                            },
+                            "optional": false
+                          }
+                        },
+                        "optional": true
+                      }
+                    }
+                  }
+                ]
+              }
+            },
+            "optional": false
+          }
+        }
+      },
+      "indexes": [
+        {
+          "indexDescriptor": "streamId_start_end",
+          "fields": ["streamId", "start", "end"]
+        }
+      ],
+      "searchIndexes": [],
+      "vectorIndexes": []
+    },
+    "memories": {
+      "validator": {
+        "type": "object",
+        "value": {
+          "threadId": {
+            "fieldType": {
+              "type": "id",
+              "tableName": "threads"
+            },
+            "optional": true
+          },
+          "userId": {
+            "fieldType": {
+              "type": "string"
+            },
+            "optional": true
+          },
+          "memory": {
+            "fieldType": {
+              "type": "string"
+            },
+            "optional": false
+          },
+          "embeddingId": {
+            "fieldType": {
+              "type": "union",
+              "value": [
+                {
+                  "type": "id",
+                  "tableName": "embeddings_128"
+                },
+                {
+                  "type": "id",
+                  "tableName": "embeddings_256"
+                },
+                {
+                  "type": "id",
+                  "tableName": "embeddings_512"
+                },
+                {
+                  "type": "id",
+                  "tableName": "embeddings_768"
+                },
+                {
+                  "type": "id",
+                  "tableName": "embeddings_1024"
+                },
+                {
+                  "type": "id",
+                  "tableName": "embeddings_1408"
+                },
+                {
+                  "type": "id",
+                  "tableName": "embeddings_1536"
+                },
+                {
+                  "type": "id",
+                  "tableName": "embeddings_2048"
+                },
+                {
+                  "type": "id",
+                  "tableName": "embeddings_3072"
+                },
+                {
+                  "type": "id",
+                  "tableName": "embeddings_4096"
+                }
+              ]
+            },
+            "optional": true
+          }
+        }
+      },
+      "indexes": [
+        {
+          "indexDescriptor": "threadId",
+          "fields": ["threadId"]
+        },
+        {
+          "indexDescriptor": "userId",
+          "fields": ["userId"]
+        },
+        {
+          "indexDescriptor": "embeddingId",
+          "fields": ["embeddingId"]
+        }
+      ],
+      "searchIndexes": [],
+      "vectorIndexes": []
+    },
+    "files": {
+      "validator": {
+        "type": "object",
+        "value": {
+          "storageId": {
+            "fieldType": {
+              "type": "string"
+            },
+            "optional": false
+          },
+          "mimeType": {
+            "fieldType": {
+              "type": "string"
+            },
+            "optional": false
+          },
+          "filename": {
+            "fieldType": {
+              "type": "string"
+            },
+            "optional": true
+          },
+          "hash": {
+            "fieldType": {
+              "type": "string"
+            },
+            "optional": false
+          },
+          "refcount": {
+            "fieldType": {
+              "type": "number"
+            },
+            "optional": false
+          },
+          "lastTouchedAt": {
+            "fieldType": {
+              "type": "number"
+            },
+            "optional": false
+          }
+        }
+      },
+      "indexes": [
+        {
+          "indexDescriptor": "hash",
+          "fields": ["hash"]
+        },
+        {
+          "indexDescriptor": "refcount",
+          "fields": ["refcount"]
+        }
+      ],
+      "searchIndexes": [],
+      "vectorIndexes": []
+    },
+    "embeddings_128": {
+      "validator": {
+        "type": "object",
+        "value": {
+          "model": {
+            "fieldType": {
+              "type": "string"
+            },
+            "optional": false
+          },
+          "table": {
+            "fieldType": {
+              "type": "string"
+            },
+            "optional": false
+          },
+          "userId": {
+            "fieldType": {
+              "type": "string"
+            },
+            "optional": true
+          },
+          "threadId": {
+            "fieldType": {
+              "type": "string"
+            },
+            "optional": true
+          },
+          "model_table_userId": {
+            "fieldType": {
+              "type": "array",
+              "value": {
+                "type": "string"
+              }
+            },
+            "optional": true
+          },
+          "model_table_threadId": {
+            "fieldType": {
+              "type": "array",
+              "value": {
+                "type": "string"
+              }
+            },
+            "optional": true
+          },
+          "vector": {
+            "fieldType": {
+              "type": "array",
+              "value": {
+                "type": "number"
+              }
+            },
+            "optional": false
+          }
+        }
+      },
+      "indexes": [
+        {
+          "indexDescriptor": "model_table_threadId",
+          "fields": ["model", "table", "threadId"]
+        }
+      ],
+      "searchIndexes": [],
+      "vectorIndexes": [
+        {
+          "indexDescriptor": "vector",
+          "vectorField": "vector",
+          "dimensions": 128,
+          "filterFields": ["model_table_userId", "model_table_threadId"]
+        }
+      ]
+    },
+    "embeddings_256": {
+      "validator": {
+        "type": "object",
+        "value": {
+          "model": {
+            "fieldType": {
+              "type": "string"
+            },
+            "optional": false
+          },
+          "table": {
+            "fieldType": {
+              "type": "string"
+            },
+            "optional": false
+          },
+          "userId": {
+            "fieldType": {
+              "type": "string"
+            },
+            "optional": true
+          },
+          "threadId": {
+            "fieldType": {
+              "type": "string"
+            },
+            "optional": true
+          },
+          "model_table_userId": {
+            "fieldType": {
+              "type": "array",
+              "value": {
+                "type": "string"
+              }
+            },
+            "optional": true
+          },
+          "model_table_threadId": {
+            "fieldType": {
+              "type": "array",
+              "value": {
+                "type": "string"
+              }
+            },
+            "optional": true
+          },
+          "vector": {
+            "fieldType": {
+              "type": "array",
+              "value": {
+                "type": "number"
+              }
+            },
+            "optional": false
+          }
+        }
+      },
+      "indexes": [
+        {
+          "indexDescriptor": "model_table_threadId",
+          "fields": ["model", "table", "threadId"]
+        }
+      ],
+      "searchIndexes": [],
+      "vectorIndexes": [
+        {
+          "indexDescriptor": "vector",
+          "vectorField": "vector",
+          "dimensions": 256,
+          "filterFields": ["model_table_userId", "model_table_threadId"]
+        }
+      ]
+    },
+    "embeddings_512": {
+      "validator": {
+        "type": "object",
+        "value": {
+          "model": {
+            "fieldType": {
+              "type": "string"
+            },
+            "optional": false
+          },
+          "table": {
+            "fieldType": {
+              "type": "string"
+            },
+            "optional": false
+          },
+          "userId": {
+            "fieldType": {
+              "type": "string"
+            },
+            "optional": true
+          },
+          "threadId": {
+            "fieldType": {
+              "type": "string"
+            },
+            "optional": true
+          },
+          "model_table_userId": {
+            "fieldType": {
+              "type": "array",
+              "value": {
+                "type": "string"
+              }
+            },
+            "optional": true
+          },
+          "model_table_threadId": {
+            "fieldType": {
+              "type": "array",
+              "value": {
+                "type": "string"
+              }
+            },
+            "optional": true
+          },
+          "vector": {
+            "fieldType": {
+              "type": "array",
+              "value": {
+                "type": "number"
+              }
+            },
+            "optional": false
+          }
+        }
+      },
+      "indexes": [
+        {
+          "indexDescriptor": "model_table_threadId",
+          "fields": ["model", "table", "threadId"]
+        }
+      ],
+      "searchIndexes": [],
+      "vectorIndexes": [
+        {
+          "indexDescriptor": "vector",
+          "vectorField": "vector",
+          "dimensions": 512,
+          "filterFields": ["model_table_userId", "model_table_threadId"]
+        }
+      ]
+    },
+    "embeddings_768": {
+      "validator": {
+        "type": "object",
+        "value": {
+          "model": {
+            "fieldType": {
+              "type": "string"
+            },
+            "optional": false
+          },
+          "table": {
+            "fieldType": {
+              "type": "string"
+            },
+            "optional": false
+          },
+          "userId": {
+            "fieldType": {
+              "type": "string"
+            },
+            "optional": true
+          },
+          "threadId": {
+            "fieldType": {
+              "type": "string"
+            },
+            "optional": true
+          },
+          "model_table_userId": {
+            "fieldType": {
+              "type": "array",
+              "value": {
+                "type": "string"
+              }
+            },
+            "optional": true
+          },
+          "model_table_threadId": {
+            "fieldType": {
+              "type": "array",
+              "value": {
+                "type": "string"
+              }
+            },
+            "optional": true
+          },
+          "vector": {
+            "fieldType": {
+              "type": "array",
+              "value": {
+                "type": "number"
+              }
+            },
+            "optional": false
+          }
+        }
+      },
+      "indexes": [
+        {
+          "indexDescriptor": "model_table_threadId",
+          "fields": ["model", "table", "threadId"]
+        }
+      ],
+      "searchIndexes": [],
+      "vectorIndexes": [
+        {
+          "indexDescriptor": "vector",
+          "vectorField": "vector",
+          "dimensions": 768,
+          "filterFields": ["model_table_userId", "model_table_threadId"]
+        }
+      ]
+    },
+    "embeddings_1024": {
+      "validator": {
+        "type": "object",
+        "value": {
+          "model": {
+            "fieldType": {
+              "type": "string"
+            },
+            "optional": false
+          },
+          "table": {
+            "fieldType": {
+              "type": "string"
+            },
+            "optional": false
+          },
+          "userId": {
+            "fieldType": {
+              "type": "string"
+            },
+            "optional": true
+          },
+          "threadId": {
+            "fieldType": {
+              "type": "string"
+            },
+            "optional": true
+          },
+          "model_table_userId": {
+            "fieldType": {
+              "type": "array",
+              "value": {
+                "type": "string"
+              }
+            },
+            "optional": true
+          },
+          "model_table_threadId": {
+            "fieldType": {
+              "type": "array",
+              "value": {
+                "type": "string"
+              }
+            },
+            "optional": true
+          },
+          "vector": {
+            "fieldType": {
+              "type": "array",
+              "value": {
+                "type": "number"
+              }
+            },
+            "optional": false
+          }
+        }
+      },
+      "indexes": [
+        {
+          "indexDescriptor": "model_table_threadId",
+          "fields": ["model", "table", "threadId"]
+        }
+      ],
+      "searchIndexes": [],
+      "vectorIndexes": [
+        {
+          "indexDescriptor": "vector",
+          "vectorField": "vector",
+          "dimensions": 1024,
+          "filterFields": ["model_table_userId", "model_table_threadId"]
+        }
+      ]
+    },
+    "embeddings_1408": {
+      "validator": {
+        "type": "object",
+        "value": {
+          "model": {
+            "fieldType": {
+              "type": "string"
+            },
+            "optional": false
+          },
+          "table": {
+            "fieldType": {
+              "type": "string"
+            },
+            "optional": false
+          },
+          "userId": {
+            "fieldType": {
+              "type": "string"
+            },
+            "optional": true
+          },
+          "threadId": {
+            "fieldType": {
+              "type": "string"
+            },
+            "optional": true
+          },
+          "model_table_userId": {
+            "fieldType": {
+              "type": "array",
+              "value": {
+                "type": "string"
+              }
+            },
+            "optional": true
+          },
+          "model_table_threadId": {
+            "fieldType": {
+              "type": "array",
+              "value": {
+                "type": "string"
+              }
+            },
+            "optional": true
+          },
+          "vector": {
+            "fieldType": {
+              "type": "array",
+              "value": {
+                "type": "number"
+              }
+            },
+            "optional": false
+          }
+        }
+      },
+      "indexes": [
+        {
+          "indexDescriptor": "model_table_threadId",
+          "fields": ["model", "table", "threadId"]
+        }
+      ],
+      "searchIndexes": [],
+      "vectorIndexes": [
+        {
+          "indexDescriptor": "vector",
+          "vectorField": "vector",
+          "dimensions": 1408,
+          "filterFields": ["model_table_userId", "model_table_threadId"]
+        }
+      ]
+    },
+    "embeddings_1536": {
+      "validator": {
+        "type": "object",
+        "value": {
+          "model": {
+            "fieldType": {
+              "type": "string"
+            },
+            "optional": false
+          },
+          "table": {
+            "fieldType": {
+              "type": "string"
+            },
+            "optional": false
+          },
+          "userId": {
+            "fieldType": {
+              "type": "string"
+            },
+            "optional": true
+          },
+          "threadId": {
+            "fieldType": {
+              "type": "string"
+            },
+            "optional": true
+          },
+          "model_table_userId": {
+            "fieldType": {
+              "type": "array",
+              "value": {
+                "type": "string"
+              }
+            },
+            "optional": true
+          },
+          "model_table_threadId": {
+            "fieldType": {
+              "type": "array",
+              "value": {
+                "type": "string"
+              }
+            },
+            "optional": true
+          },
+          "vector": {
+            "fieldType": {
+              "type": "array",
+              "value": {
+                "type": "number"
+              }
+            },
+            "optional": false
+          }
+        }
+      },
+      "indexes": [
+        {
+          "indexDescriptor": "model_table_threadId",
+          "fields": ["model", "table", "threadId"]
+        }
+      ],
+      "searchIndexes": [],
+      "vectorIndexes": [
+        {
+          "indexDescriptor": "vector",
+          "vectorField": "vector",
+          "dimensions": 1536,
+          "filterFields": ["model_table_userId", "model_table_threadId"]
+        }
+      ]
+    },
+    "embeddings_2048": {
+      "validator": {
+        "type": "object",
+        "value": {
+          "model": {
+            "fieldType": {
+              "type": "string"
+            },
+            "optional": false
+          },
+          "table": {
+            "fieldType": {
+              "type": "string"
+            },
+            "optional": false
+          },
+          "userId": {
+            "fieldType": {
+              "type": "string"
+            },
+            "optional": true
+          },
+          "threadId": {
+            "fieldType": {
+              "type": "string"
+            },
+            "optional": true
+          },
+          "model_table_userId": {
+            "fieldType": {
+              "type": "array",
+              "value": {
+                "type": "string"
+              }
+            },
+            "optional": true
+          },
+          "model_table_threadId": {
+            "fieldType": {
+              "type": "array",
+              "value": {
+                "type": "string"
+              }
+            },
+            "optional": true
+          },
+          "vector": {
+            "fieldType": {
+              "type": "array",
+              "value": {
+                "type": "number"
+              }
+            },
+            "optional": false
+          }
+        }
+      },
+      "indexes": [
+        {
+          "indexDescriptor": "model_table_threadId",
+          "fields": ["model", "table", "threadId"]
+        }
+      ],
+      "searchIndexes": [],
+      "vectorIndexes": [
+        {
+          "indexDescriptor": "vector",
+          "vectorField": "vector",
+          "dimensions": 2048,
+          "filterFields": ["model_table_userId", "model_table_threadId"]
+        }
+      ]
+    },
+    "embeddings_3072": {
+      "validator": {
+        "type": "object",
+        "value": {
+          "model": {
+            "fieldType": {
+              "type": "string"
+            },
+            "optional": false
+          },
+          "table": {
+            "fieldType": {
+              "type": "string"
+            },
+            "optional": false
+          },
+          "userId": {
+            "fieldType": {
+              "type": "string"
+            },
+            "optional": true
+          },
+          "threadId": {
+            "fieldType": {
+              "type": "string"
+            },
+            "optional": true
+          },
+          "model_table_userId": {
+            "fieldType": {
+              "type": "array",
+              "value": {
+                "type": "string"
+              }
+            },
+            "optional": true
+          },
+          "model_table_threadId": {
+            "fieldType": {
+              "type": "array",
+              "value": {
+                "type": "string"
+              }
+            },
+            "optional": true
+          },
+          "vector": {
+            "fieldType": {
+              "type": "array",
+              "value": {
+                "type": "number"
+              }
+            },
+            "optional": false
+          }
+        }
+      },
+      "indexes": [
+        {
+          "indexDescriptor": "model_table_threadId",
+          "fields": ["model", "table", "threadId"]
+        }
+      ],
+      "searchIndexes": [],
+      "vectorIndexes": [
+        {
+          "indexDescriptor": "vector",
+          "vectorField": "vector",
+          "dimensions": 3072,
+          "filterFields": ["model_table_userId", "model_table_threadId"]
+        }
+      ]
+    },
+    "embeddings_4096": {
+      "validator": {
+        "type": "object",
+        "value": {
+          "model": {
+            "fieldType": {
+              "type": "string"
+            },
+            "optional": false
+          },
+          "table": {
+            "fieldType": {
+              "type": "string"
+            },
+            "optional": false
+          },
+          "userId": {
+            "fieldType": {
+              "type": "string"
+            },
+            "optional": true
+          },
+          "threadId": {
+            "fieldType": {
+              "type": "string"
+            },
+            "optional": true
+          },
+          "model_table_userId": {
+            "fieldType": {
+              "type": "array",
+              "value": {
+                "type": "string"
+              }
+            },
+            "optional": true
+          },
+          "model_table_threadId": {
+            "fieldType": {
+              "type": "array",
+              "value": {
+                "type": "string"
+              }
+            },
+            "optional": true
+          },
+          "vector": {
+            "fieldType": {
+              "type": "array",
+              "value": {
+                "type": "number"
+              }
+            },
+            "optional": false
+          }
+        }
+      },
+      "indexes": [
+        {
+          "indexDescriptor": "model_table_threadId",
+          "fields": ["model", "table", "threadId"]
+        }
+      ],
+      "searchIndexes": [],
+      "vectorIndexes": [
+        {
+          "indexDescriptor": "vector",
+          "vectorField": "vector",
+          "dimensions": 4096,
+          "filterFields": ["model_table_userId", "model_table_threadId"]
+        }
+      ]
+    },
+    "apiKeys": {
+      "validator": {
+        "type": "object",
+        "value": {
+          "name": {
+            "fieldType": {
+              "type": "string"
+            },
+            "optional": true
+          }
+        }
+      },
+      "indexes": [
+        {
+          "indexDescriptor": "name",
+          "fields": ["name"]
+        }
+      ],
+      "searchIndexes": [],
+      "vectorIndexes": []
+    }
+  }
+}

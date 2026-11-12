@@ -48,6 +48,59 @@ test("audit findings and package paths remain visible with nonzero high/critical
     "passed"
   )
 })
+test("pnpm JSON exit 1 with only lower findings passes the high threshold and preserves advisories", async () => {
+  const lower = report(
+    {
+      one: { ...advisory, severity: "moderate" },
+      two: { ...advisory, module_name: "another-package", severity: "low" },
+    },
+    { moderate: 1, low: 1 }
+  )
+  const result = await scanDependencies({
+    execute: async () => ({ output: JSON.stringify(lower), code: 1 }),
+  })
+  assert.equal(result.exitCode, 0)
+  assert.equal(result.report.status, "passed")
+  assert.deepEqual(result.report.counts, {
+    info: 0,
+    low: 1,
+    moderate: 1,
+    high: 0,
+    critical: 0,
+  })
+  assert.deepEqual(
+    result.report.advisories.map(({ severity }) => severity),
+    ["moderate", "low"]
+  )
+  assert.equal(auditReport({ ...lower, error: {} }, 1).status, "unavailable")
+  assert.equal(auditReport(lower, 2).status, "unavailable")
+  assert.equal(auditReport(report(), 1).status, "unavailable")
+})
+test("high or critical evidence fails regardless of pnpm exit and metadata disagreement", () => {
+  for (const code of [0, 1]) {
+    for (const severity of ["high", "critical"]) {
+      const records = { one: { ...advisory, severity } }
+      assert.equal(
+        auditReport(report(records, { [severity]: 1 }), code).status,
+        "findings"
+      )
+      assert.equal(
+        auditReport(report(records, { moderate: 1 }), code).status,
+        "findings"
+      )
+      assert.equal(
+        auditReport(
+          report(
+            { one: { ...advisory, severity: "moderate" } },
+            { [severity]: 1 }
+          ),
+          code
+        ).status,
+        "findings"
+      )
+    }
+  }
+})
 test("registry failures, malformed reports and contradictory exit codes never become clean scans", async () => {
   for (const data of [
     { advisories: [], metadata: { vulnerabilities: {} } },
