@@ -2,6 +2,8 @@ import process from "node:process"
 import { createServer } from "node:net"
 import { readFile } from "node:fs/promises"
 import { generateKeyPairSync, randomBytes } from "node:crypto"
+import { dirname, basename } from "node:path"
+import { isIP } from "node:net"
 import { fileURLToPath, URL } from "node:url"
 import {
   childEnvironment,
@@ -70,11 +72,18 @@ export async function verifyDocker(execute = run, env = childEnvironment()) {
     throw new GateFailure("docker-target", "precondition")
   return prefix
 }
-export async function reservations() {
+export async function reservations({ browser = false } = {}) {
   const servers = [],
     ports = {}
   try {
-    for (const name of ["api", "worker", "realtime", "jaeger", "prom"]) {
+    for (const name of [
+      "api",
+      "worker",
+      "realtime",
+      "jaeger",
+      "prom",
+      ...(browser ? ["browser"] : []),
+    ]) {
       const server = createServer()
       servers.push(server)
       await new Promise((resolve, reject) => {
@@ -85,13 +94,15 @@ export async function reservations() {
     }
     return {
       ports,
-      async release() {
+      async release(name) {
         await Promise.all(
-          servers.map((server) =>
-            server.listening
-              ? new Promise((resolve) => server.close(resolve))
-              : Promise.resolve()
-          )
+          servers
+            .filter((_, index) => !name || Object.keys(ports)[index] === name)
+            .map((server) =>
+              server.listening
+                ? new Promise((resolve) => server.close(resolve))
+                : Promise.resolve()
+            )
         )
       },
     }
@@ -100,11 +111,11 @@ export async function reservations() {
     throw error
   }
 }
-export async function prepare() {
+export async function prepare({ browser = false } = {}) {
   const owned = await privateRunDirectory()
   let ports
   try {
-    ports = await reservations()
+    ports = await reservations({ browser })
     const signing = generateKeyPairSync("rsa", { modulusLength: 2048 })
     const secret = () => randomBytes(32).toString("base64url")
     const credentials = {
@@ -130,6 +141,9 @@ export async function prepare() {
     )
     const values = {
       REGRESSION_PROJECT: owned.project,
+      REGRESSION_AUTHORIZED_PARTIES: browser
+        ? "http://127.0.0.1:" + ports.ports.browser
+        : "http://localhost:3000",
       REGRESSION_IMAGE: image,
       REGRESSION_DB_PASSWORD: credentials.database,
       REGRESSION_DATABASE_URL: `postgresql://conversations:${credentials.database}@postgres:5432/conversations`,
@@ -161,7 +175,7 @@ export async function prepare() {
     return {
       ...owned,
       ports: ports.ports,
-      releasePorts: () => ports.release(),
+      releasePorts: (name) => ports.release(name),
       signing,
       credentials,
       image,
@@ -176,8 +190,18 @@ export async function prepare() {
 export function composeController(
   owned,
   prefix,
-  { execute = run, signal, env = childEnvironment() } = {}
+  { execute = run, signal, env = childEnvironment(), files = [] } = {}
 ) {
+  if (
+    !Array.isArray(files) ||
+    files.some(
+      (file) =>
+        typeof file !== "string" ||
+        dirname(file) !== owned.directory ||
+        !/^[a-z0-9.-]+$/.test(basename(file))
+    )
+  )
+    throw new GateFailure("compose-files", "precondition")
   const base = [
     ...prefix,
     "compose",
@@ -189,6 +213,7 @@ export function composeController(
     owned.project,
     "-f",
     "docker-compose.regression.yml",
+    ...files.flatMap((file) => ["-f", file]),
     "--profile",
     "observability",
   ]
@@ -205,40 +230,102 @@ export function composeController(
     const label = "com.docker.compose.project=" + owned.project
     const remaining = []
     for (const kind of ["container", "network", "volume"]) {
-      const result = await execute(
-        "docker",
-        [
-          ...prefix,
-          kind,
-          "ls",
-          ...(kind === "container" ? ["-a"] : []),
-          "--filter",
-          "label=" + label,
-          "--format",
-          kind === "volume" ? "{{.Name}}" : "{{.ID}}",
-        ],
-        { env, stage: "cleanup-check", timeoutMs: 15000 }
-      )
-      if (result.output.trim()) remaining.push(kind)
+      try {
+        const result = await execute(
+          "docker",
+          [
+            ...prefix,
+            kind,
+            "ls",
+            ...(kind === "container" ? ["-a"] : []),
+            "--filter",
+            "label=" + label,
+            "--format",
+            kind === "volume" ? "{{.Name}}" : "{{.ID}}",
+          ],
+          { env, stage: "cleanup-check", timeoutMs: 15000 }
+        )
+        if (result.output.trim()) remaining.push(kind)
+      } catch {
+        remaining.push(kind)
+      }
     }
     return remaining
   }
   return {
     command,
+    async inspect(service) {
+      if (!/^[a-z][a-z0-9-]{0,40}$/.test(service))
+        throw new GateFailure("owned-service-inspect", "precondition")
+      const id = (
+        await command(["ps", "-a", "-q", service], "owned-service-id")
+      ).output.trim()
+      if (!/^[a-f0-9]{12,64}$/.test(id))
+        throw new GateFailure("owned-service-inspect", "invalid_result")
+      const result = json(
+        (
+          await execute("docker", [...prefix, "inspect", id], {
+            env,
+            stage: "owned-service-inspect",
+            timeoutMs: 15000,
+          })
+        ).output,
+        "owned-service-inspect"
+      )
+      const value =
+        Array.isArray(result) && result.length === 1 ? result[0] : undefined
+      if (
+        value?.Config?.Labels?.["com.docker.compose.project"] !==
+          owned.project ||
+        !Number.isInteger(value?.State?.ExitCode) ||
+        typeof value?.State?.OOMKilled !== "boolean" ||
+        ![
+          "created",
+          "running",
+          "paused",
+          "restarting",
+          "removing",
+          "exited",
+          "dead",
+        ].includes(value?.State?.Status)
+      )
+        throw new GateFailure("owned-service-inspect", "invalid_result")
+      const networks = Object.entries(value.NetworkSettings?.Networks ?? {})
+      if (
+        networks.length !== 1 ||
+        networks[0][0] !== owned.project + "_default"
+      )
+        throw new GateFailure("owned-service-inspect", "invalid_result")
+      const address = networks[0][1]?.IPAddress
+      return {
+        state: value.State.Status,
+        exitCode: value.State.ExitCode,
+        oomKilled: value.State.OOMKilled,
+        addresses:
+          typeof address === "string" && isIP(address) === 4 ? [address] : [],
+      }
+    },
     async cleanup() {
       if (cleaning) return cleaning
       cleaning = (async () => {
         let clean = true
         try {
           await owned.releasePorts()
+        } catch {
+          clean = false
+        }
+        try {
           await command(
             ["down", "--volumes", "--remove-orphans", "--timeout", "6"],
             "cleanup",
             45000,
             null
           )
-          if ((await resources()).length)
-            throw new GateFailure("cleanup-check", "cleanup_failed")
+        } catch {
+          clean = false
+        }
+        if ((await resources()).length) clean = false
+        try {
           // Only the exact unique tag produced by this run; shared build cache stays intact.
           const images = await execute(
             "docker",

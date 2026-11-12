@@ -1,13 +1,52 @@
 // Bundle with esbuild's browser platform and run in a fresh real browser context.
 // The receiver is in memory: the synthetic DSN must never be contacted.
-import * as Sentry from "@sentry/nextjs"
+import {
+  BrowserClient,
+  SDK_VERSION,
+  createTransport,
+  setCurrentClient,
+  getClient,
+  withScope,
+  captureException,
+  captureEvent,
+  captureMessage,
+  logger,
+  metrics,
+  startSession,
+  captureSession,
+  endSession,
+  startSpan,
+  flush,
+  close,
+} from "@sentry/nextjs"
+const Sentry = {
+  BrowserClient,
+  SDK_VERSION,
+  createTransport,
+  setCurrentClient,
+  getClient,
+  withScope,
+  captureException,
+  captureEvent,
+  captureMessage,
+  logger,
+  metrics,
+  startSession,
+  captureSession,
+  endSession,
+  startSpan,
+  flush,
+  close,
+}
 import {
   initializeDiagnostics,
   reportFailure,
 } from "../modules/diagnostics/policy"
 
-export async function verifyBrowserDiagnostics() {
-  const canary = "PRIVATE_BROWSER_TRANSCRIPT_TICKET_URL_STACK_CANARY"
+export async function verifyBrowserDiagnostics(
+  canary = "PRIVATE_BROWSER_TRANSCRIPT_TICKET_URL_STACK_CANARY",
+  privateValues: string[] = []
+) {
   const bodies: string[] = []
   const originalConsole = [console.log, console.warn, console.error]
   const originalHandlers = [window.onerror, window.onunhandledrejection]
@@ -38,7 +77,7 @@ export async function verifyBrowserDiagnostics() {
     client.on("beforeSendEvent", (event) => {
       event.event_id = canary
       event.tags = { failure: canary, runtime: canary }
-      event.extra = { data: canary }
+      event.extra = { data: canary, privateValues }
     })
     client.on("beforeEnvelope", (envelope) => {
       envelope[0].sdk = { name: canary, version: canary }
@@ -71,6 +110,7 @@ export async function verifyBrowserDiagnostics() {
     const ids = new Set<string>()
     bodies.forEach((body, index) => {
       check(!body.includes(canary))
+      for (const value of privateValues) check(!body.includes(value))
       const lines = body.split("\n").map((line) => JSON.parse(line))
       check(lines.length === 3)
       const [header, item, event] = lines
