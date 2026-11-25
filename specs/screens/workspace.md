@@ -6,6 +6,12 @@ The signed-in root redirects to `/conversations`. `/conversations` shows the per
 
 The browser obtains an internal account through authenticated `GET /v1/me`; account IDs never select another owner. Account/session changes stop the old connection and clear its visible state before loading another account. Missing, deleted and inaccessible conversations share an unavailable state with a way back to the list. No fixture or development flag bypasses production Clerk/API verification.
 
+## Session orchestration boundary
+
+The production Clerk/Next adapter supplies identity, a refreshable getToken callback, navigation and actual environment configuration to one shared client session/context boundary. That boundary owns the identity-keyed token source, token callback refresh, store/client creation after strict API-origin validation, store start/stop lifecycle and context subscription. Refreshing a token for the same user preserves the store, draft and unresolved request identity. Replacing identity stops the previous connection, clears visible account/conversation/draft/admission state and fences late callbacks before another owner is displayed. API-origin validation retains its existing development/test/production rules; no test flag changes production authorization or origin policy.
+
+Synthetic browser tests may inject these inputs at this shared boundary, while using the real store/API/transport and rendered screen. They do not duplicate the session lifecycle or claim to exercise Clerk hooks/sign-in and Next routing. Real-user Clerk evidence remains separate from these deterministic checks.
+
 ## Layout and display
 
 Reuse the existing theme, responsive sidebar, buttons and shared AI conversation/message/input primitives. Navigation uses developer-workspace language, personal identity and conversations; support/widget configuration, organization selection and unimplemented projects/files/tools do not appear as active destinations. Voice controls arrive with the voice feature, and the text flow never requests microphone permission.

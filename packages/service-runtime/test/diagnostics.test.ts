@@ -325,3 +325,68 @@ test("local scrape preparation writes only a private ignored file and never prin
     (error) => !String(error).includes(canary)
   )
 })
+
+test("concurrent diagnostic shutdown joins one cached exporter lifetime", async () => {
+  let entered: () => void = () => {},
+    release: () => void = () => {},
+    calls = 0
+  const ready = new Promise<void>((resolve) => {
+      entered = resolve
+    }),
+    held = new Promise<void>((resolve) => {
+      release = resolve
+    })
+  const diag = new Diagnostics(loadConfig("api", env), {
+    exporter: {
+      export(_spans, done) {
+        done({ code: 0 })
+      },
+      async shutdown() {
+        calls++
+        entered()
+        await held
+      },
+    },
+    stream: { write() {} },
+  })
+  const first = diag.shutdown()
+  await ready
+  assert.equal(diag.shutdown(), first)
+  release()
+  await first
+  assert.equal(calls, 1)
+})
+
+test("packaged default diagnostic transport exports real HTTP spans and joins closure", async () => {
+  const { createServer } = await import("node:http")
+  const { Diagnostics: PackagedDiagnostics } =
+    await import("../dist/diagnostics.js")
+  let requests = 0
+  const server = createServer((request, response) => {
+    requests++
+    request.resume()
+    response.end()
+  })
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve))
+  const address = server.address()
+  if (!address || typeof address === "string") throw Error("Missing listener")
+  const diag = new PackagedDiagnostics(
+    loadConfig("api", {
+      ...env,
+      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:
+        "http://127.0.0.1:" + address.port + "/v1/traces",
+    }),
+    { stream: { write() {} } }
+  )
+  try {
+    await diag.run("http", {}, async () => "unchanged")
+    const close = diag.shutdown()
+    assert.equal(diag.shutdown(), close)
+    await close
+    assert.equal(requests, 1)
+  } finally {
+    await diag.shutdown()
+    server.closeAllConnections()
+    await new Promise<void>((resolve) => server.close(() => resolve()))
+  }
+})

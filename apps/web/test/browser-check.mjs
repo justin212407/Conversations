@@ -1,13 +1,9 @@
-export default async function checkWorkspace(page) {
+export default async function checkWorkspace(
+  page,
+  { capture = async () => {} } = {}
+) {
   await page.setViewportSize({ width: 1280, height: 800 })
-  await page.evaluate(() => {
-    globalThis.fixtureMicRequests = 0
-    if (globalThis.navigator.mediaDevices)
-      globalThis.navigator.mediaDevices.getUserMedia = async () => {
-        globalThis.fixtureMicRequests++
-        throw new Error("No microphone in text fixture")
-      }
-  })
+
   await page
     .getByRole("link", { name: "A debugger's notebook", exact: true })
     .click()
@@ -117,7 +113,7 @@ export default async function checkWorkspace(page) {
   await page.waitForFunction(
     () => globalThis.workspaceFixture.store.snapshot().phase === "live"
   )
-  await page.screenshot({ path: "/tmp/workspace-desktop-22.png" })
+  await capture(page, "desktop")
   await page.setViewportSize({ width: 390, height: 844 })
   await page
     .getByRole("button", { name: "Toggle conversations sidebar", exact: true })
@@ -139,7 +135,7 @@ export default async function checkWorkspace(page) {
   if (size.scroll > size.width + 1 || !box || box.y + box.height > 844)
     throw new Error("Mobile overflow or unreachable composer")
   if (size.mic !== 0) throw new Error("Text flow requested microphone")
-  await page.screenshot({ path: "/tmp/workspace-mobile-22.png" })
+  await capture(page, "mobile")
   return {
     checks: [
       "older history",

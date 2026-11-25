@@ -1,3 +1,4 @@
+import { decodeTrace } from "./trace.mjs"
 import assert from "node:assert/strict"
 import { createHash, randomBytes, randomUUID, sign } from "node:crypto"
 import { createRequire } from "node:module"
@@ -26,7 +27,7 @@ export function contextDigest(messages) {
       .digest("hex")
   )
 }
-function token(signing, actor, extra = {}) {
+export function token(signing, actor, extra = {}, authorizedParty = origin) {
   const now = Math.floor(Date.now() / 1000),
     enc = (value) => Buffer.from(JSON.stringify(value)).toString("base64url")
   const unsigned =
@@ -37,7 +38,7 @@ function token(signing, actor, extra = {}) {
       sid: "sess_regression_" + actor,
       sts: "active",
       iss: issuer,
-      azp: origin,
+      azp: authorizedParty,
       iat: now,
       nbf: now - 1,
       exp: now + 600,
@@ -373,18 +374,10 @@ export async function verifyLifecycle(owned, docker, { signal, setStage }) {
           address("jaeger") + "/api/v3/traces/" + traceId
         )
         if (!response.ok) return false
-        const raw = await response.text(),
-          packets = raw
-            .trim()
-            .split("\n")
-            .filter(Boolean)
-            .map((line) => json(line, "jaeger-format"))
-        const resources = packets.flatMap(
-            (packet) => (packet.result ?? packet).resourceSpans ?? []
-          ),
-          spans = resources.flatMap((resource) =>
-            (resource.scopeSpans ?? []).flatMap((scope) => scope.spans ?? [])
-          )
+        const { raw, resources, spans } = decodeTrace(
+          await response.text(),
+          "jaeger-format"
+        )
         const finalize = spans.find(
           (span) => span.name === "operation.finalize"
         )
