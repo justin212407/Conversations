@@ -1,5 +1,5 @@
 ---
-status: in-progress
+status: done
 depends:
   [service-regression, workspace, frontend-security, security-schema-legacy]
 specs:
@@ -11,6 +11,7 @@ specs:
   - specs/behaviors/dependency-security.md
   - specs/api/conversations.md
 issues: [24, 25]
+pr: 39
 ---
 
 # Plan: Portable workspace browser and frontend CI regression
@@ -56,22 +57,22 @@ The accepted measured design for step 11 is a default OTLP transport factory ret
 
 ## Validation
 
-- [ ] The actual one-request slow-DNS collector-outage regression exits the API successfully within its existing shutdown allowance, joins all owned lookup/transport work, preserves healthy trace causality and disabled-export controls, and retains the unchanged full lifecycle assertions.
-- [ ] Clean checkout installs the exact pinned library/browser through documented repository commands, with no global tool, private helper, live credentials or owner profile dependency; toolchain/patch ownership and whole graph are preserved.
-- [ ] Shared production session/context orchestration passes same-user refresh, identity replacement/stop/clear/late-callback tests while strict API-origin validation remains before store/client creation; production Clerk/Next adaptation is unchanged and synthetic limits are explicit.
-- [ ] All eight existing renderer flows pass as separately labelled coverage, with private owned screenshot paths, no microphone request/overflow/page error and verified owned cleanup.
-- [ ] Actual browser native API/WebSocket flow passes provisional-to-durable completion, full reload/list/reopen/second prompt and exact completed-context/identity/order checks against real isolated services.
-- [ ] Actual persisted failure/reload/retry preserves one user; lost acknowledgement is proven after committed admission and survives full reload/same UUID replay with one operation/provider execution and stable durable IDs.
-- [ ] Real backend signature/session/expiry/azp and foreign ownership denials, account scope clearing and actual realtime restart/new-ticket/reconciliation pass without Origin spoofing, fixture success or production bypass.
-- [ ] Actual browser-operation canaries are absent from exported service diagnostics and enabled frontend SDK envelopes; disabled diagnostics and external egress are distinguished, with no raw console/CI artifact leakage.
-- [ ] Browser/server/profile and Docker cleanup jointly pass normal/assertion/SIGINT/SIGTERM/deadline tests and actual owned faults, preserve sentinels, and classify failed/unverified browser cleanup as cleanup:false even when Compose cleanup succeeds.
-- [ ] Existing foundation lifecycle/metrics/SQL/collector-outage/shutdown and prior focused gates retain their verified meaning; no browser operation contaminates fixed foundation counts or unrelated resources.
-- [ ] Frontend CI declares units/type/lint/synthetic production build, pinned Chromium install and both browser layers with serialized heavy jobs/deadlines, retaining existing service/legacy/audit gates and the hosted-access waiver honestly.
-- [ ] Frozen source has passing affected local gates and a fresh full audit with zero high/critical findings; inherited limitations, separate live Clerk/voice/deployment acceptance and remaining #25 work are recorded without claiming unavailable hosted execution.
+- [x] The actual one-request slow-DNS collector-outage regression exits the API successfully within its existing shutdown allowance, joins all owned lookup/transport work, preserves healthy trace causality and disabled-export controls, and retains the unchanged full lifecycle assertions.
+- [x] Clean checkout installs the exact pinned library/browser through documented repository commands, with no global tool, private helper, live credentials or owner profile dependency; toolchain/patch ownership and whole graph are preserved.
+- [x] Shared production session/context orchestration passes same-user refresh, identity replacement/stop/clear/late-callback tests while strict API-origin validation remains before store/client creation; production Clerk/Next adaptation is unchanged and synthetic limits are explicit.
+- [x] All eight existing renderer flows pass as separately labelled coverage, with private owned screenshot paths, no microphone request/overflow/page error and verified owned cleanup.
+- [x] Actual browser native API/WebSocket flow passes provisional-to-durable completion, full reload/list/reopen/second prompt and exact completed-context/identity/order checks against real isolated services.
+- [x] Actual persisted failure/reload/retry preserves one user; lost acknowledgement is proven after committed admission and survives full reload/same UUID replay with one operation/provider execution and stable durable IDs.
+- [x] Real backend signature/session/expiry/azp and foreign ownership denials, account scope clearing and actual realtime restart/new-ticket/reconciliation pass without Origin spoofing, fixture success or production bypass.
+- [x] Actual browser-operation canaries are absent from exported service diagnostics and enabled frontend SDK envelopes; disabled diagnostics and external egress are distinguished, with no raw console/CI artifact leakage.
+- [x] Browser/server/profile and Docker cleanup jointly pass normal/assertion/SIGINT/SIGTERM/deadline tests and actual owned faults, preserve sentinels, and classify failed/unverified browser cleanup as cleanup:false even when Compose cleanup succeeds.
+- [x] Existing foundation lifecycle/metrics/SQL/collector-outage/shutdown and prior focused gates retain their verified meaning; no browser operation contaminates fixed foundation counts or unrelated resources.
+- [x] Frontend CI declares units/type/lint/synthetic production build, pinned Chromium install and both browser layers with serialized heavy jobs/deadlines, retaining existing service/legacy/audit gates and the hosted-access waiver honestly.
+- [x] Frozen source has passing affected local gates and a fresh full audit with zero high/critical findings; inherited limitations, separate live Clerk/voice/deployment acceptance and remaining #25 work are recorded without claiming unavailable hosted execution.
 
 ## Risks / unknowns
 
-- **Review corrections** — the first pinned review at `6d95e5c` identified uncancellable in-process bundling and ambient Playwright debug output. Preparation will move to a bounded owned build-only child with joined termination and a small private-directory writer lease; listener startup shares cancellation and a finite deadline. Unsafe debug controls are rejected before tooling imports. Actual setup assertion/deadline/SIGINT/SIGTERM tests retain the existing independent sentinels and check for late writes/listeners. Detached cleanup rejection and distinct post-restart ticket evidence are corrected in the same review pass. Existing validation criteria remain unchanged and unchecked until verified on corrected source.
+- **Review corrections** — the first pinned review at `6d95e5c` identified uncancellable in-process bundling and ambient Playwright debug output. Preparation now uses a bounded owned build-only child with joined termination and a small private-directory writer lease; listener startup shares cancellation and a finite deadline. Unsafe debug controls are rejected before tooling imports. Actual setup assertion/deadline/SIGINT/SIGTERM tests retain the existing independent sentinels and check for late writes/listeners. Detached cleanup rejection and distinct post-restart ticket evidence were corrected in the same review pass. All original validation criteria are preserved and verified on the corrected source.
 
 - **Session fidelity** — duplicating lifecycle glue in a fixture would miss production regressions. The accepted minimal extraction must stay small, preserve validation/order and be exercised in both paths; any broader domain change returns for spec review.
 - **Origin and CORS** — a real browser cannot supply Node's artificial Origin override. Reserve/discover its listener before stack config and test actual native preflights/handshakes with exact signed azp.
@@ -83,11 +84,19 @@ The accepted measured design for step 11 is a default OTLP transport factory ret
 
 ## Notes
 
-Implementation is in progress against the accepted proposal. Main prerequisites are actually merged: workspace PR #32, regression foundation PR #34, frontend privacy/configuration PR #37 and dependency/schema PR #38 (`acf433a6c73673732e8a05040d4b311c08f1c0f1`). Existing actual Clerk/Google acceptance is recorded in the completed workspace plan; later read-only Clerk/history checks were separate from synthetic gates. The initial shared session extraction and isolated real-browser runner are implemented. Final frozen-source gates, independent review and closeout remain pending; unchecked criteria below are not a claim of acceptance.
+Completed in PR #39 against merged prerequisite main `acf433a6c73673732e8a05040d4b311c08f1c0f1`. Functional verification is pinned to `407f8499362f78245da0ce1f3b0016e4942b2aba`; closeout changes only plan records. Both independent full-PR specification and standards reviews clear that source. No completed predecessor plan was changed.
 
-Runtime lifetime checkpoints are implemented at `046ef58` (compiled OS lookup owner/tests), `bf0e50b` (owned Agent/TLS/default Diagnostics integration) and root correction `ea1f33a` (bounded SDK settlement). The repository-owned shutdown matrix now passes all three fresh actual API scenarios, natural exit/child joins, real healthy spans and ten packaged OS/hosts/Docker lookup comparisons. These are implementation checkpoints; final frozen-source foundation/browser/audit gates, independent reviews and separate real Clerk compatibility remain required before closeout. No completed plan is changed.
+Fresh Ubuntu 24.04 Linux ARM64 verification used Node 22.18.0, pnpm 10.4.1, the frozen lockfile and repository-pinned Playwright/Chromium 1.65.0. Service build/types/lint, strict harness lint, 100 service tests (including 42 runtime cases), 50 harness tests, 21 web tests, two legacy compatibility tests, controller integration and process smoke pass. Test PostgreSQL/Redis were fresh owned resources with verified cleanup. The synthetic-configuration production frontend build passes; this does not claim the inherited shared UI diagnostics or widget footer error are fixed.
 
-Primary guidance reviewed: [Playwright CI](https://playwright.dev/docs/ci), [browser installation](https://playwright.dev/docs/browsers), [BrowserServer lifecycle](https://playwright.dev/docs/api/class-browserserver) and [route.fetch](https://playwright.dev/docs/api/class-route#route-fetch). Their availability does not replace checking the actual pinned source/API and cleanup behavior during implementation.
+The normal browser gate passes all eight renderer flows and the actual native-origin service flow: provisional/durable messages, exact context after reload/reopen, persisted failure/retry, committed-acknowledgement same-UUID replay, token refresh/account replacement, new-ticket reconnect, ownership/privacy and zero microphone requests. All 11 actual browser/setup/ownership/assertion/signal/deadline cases pass without skips, preserving independent sentinels and verifying joined cleanup. The unchanged full foundation passes eight causal stages, three healthy metric targets, four operations, collector outage/domain privacy and three successful service exits.
+
+The packaged shutdown matrix passes three fresh scenarios: slow-DNS outage with one actual query and a naturally exiting API after its child joins; healthy collector with a parsed HTTP span and ten compiled-child OS/hosts/Docker lookup comparisons; disabled tracing with zero lookup children/queries. Every scenario verifies cleanup. Agent destruction alone could not cancel native OS lookup, so the owned child preserves `dns.lookup` behavior instead of replacing hosts/search policy. The delayed-result timing correction removes an extra wait; SDK settlement is bounded, TLS configuration is preserved and unknown termination remains failure.
+
+The current whole-workspace audit passes zero high/critical findings, retaining 30 moderate and five low findings with all advisory records visible. Current-head hosted jobs did not start because of the account billing lock; frontend was skipped. The owner's local-verification waiver applies, never a hosted pass.
+
+The separate November 12 real-Clerk development-frontend check at `b093a0e` verified personal account access and all eight original message identities through reload/list/reopen without generation or microphone access. Its frontend Git tree is unchanged at the functional verification pin; it used the retained older backend and is distinct from synthetic sessions, current packaged-service checks, voice and production acceptance. Raw captures and the incremental local journal remain private and untracked. Voice #23 and deployed/full-lifecycle #24–#26 requirements remain open.
+
+Primary guidance reviewed: [Playwright CI](https://playwright.dev/docs/ci), [browser installation](https://playwright.dev/docs/browsers), [BrowserServer lifecycle](https://playwright.dev/docs/api/class-browserserver) and [route.fetch](https://playwright.dev/docs/api/class-route#route-fetch). Actual pinned source/API and cleanup behavior were checked during implementation.
 
 ## Follow-ups
 
