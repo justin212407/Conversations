@@ -37,6 +37,14 @@ const baseline = (hostname: string, options: LookupOptions) =>
       else accept(Array.isArray(address) ? address : { address, family })
     })
   )
+const lookupOutcome = async (pending: ReturnType<typeof resolve>) => {
+  try {
+    return { result: await pending }
+  } catch (error) {
+    if (!(error instanceof Error) || !("code" in error)) throw error
+    return { errorCode: error.code }
+  }
+}
 const configuration = (
   mode: string,
   onChild: (child: ChildProcess) => void = () => {}
@@ -67,8 +75,8 @@ test("shipped child preserves OS IP/localhost/family/all/hints/verbatim and defa
     ]
     for (const [hostname, options] of cases)
       assert.deepEqual(
-        await resolve(owner, hostname, options),
-        await baseline(hostname, options)
+        await lookupOutcome(resolve(owner, hostname, options)),
+        await lookupOutcome(baseline(hostname, options))
       )
     setDefaultResultOrder("ipv6first")
     assert.deepEqual(
@@ -274,6 +282,7 @@ test(
       })
     )
     const answer = resolve(owner, "localhost", {})
+    void answer.catch(() => {})
     try {
       await message
       await new Promise<void>((accept) => setImmediate(accept))

@@ -200,7 +200,6 @@ export class DiagnosticLookup {
       (finishing ??= (async () => {
         clearTimeout(timer)
         try {
-          if (response) await waitExit(20)
           await terminate()
           if (!verified && !spawnFailed) throw lookupFailure()
           if (child?.connected) child.disconnect()
