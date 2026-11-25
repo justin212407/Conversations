@@ -14,6 +14,8 @@ Vapi's documented `conversation-update` contains current committed history, incl
 
 The proposed seed boundary is a unique private system message after the complete prior context. The adapter must prove whether/how that boundary appears in the raw committed message list and formatted context. Raw timed records are the preferred source of current-call transcript and interruption cutoffs; formatted context may establish seed correspondence, but cannot silently substitute an unverified transcript representation. If the exact provider format does not establish an unambiguous seed/live boundary and cumulative ordering, fail closed and review this adapter contract before implementing a different mapping. No caller can enable a fake capability flag. The first successful contract probe records the supported representation and representative synthetic event evidence without committing private captures.
 
+Provider connection material must have verified scope and lifetime. An application-side join deadline is not proof that a provider URL expires or becomes unusable after ending. Establish the exact join and termination behavior before accepting the adapter; the [provider audit](../../docs/voice-provider-contract-audit.md) records the currently documented facts and remaining evidence.
+
 ## Admission and context
 
 A verified personal account can start voice only on an owned active conversation without another pending/running text or voice operation. Use the existing transactional account/request idempotency and one-active-operation fence. A voice operation has no fabricated text input/assistant placeholders and no text job handoff. The voice session identity is the operation UUID.

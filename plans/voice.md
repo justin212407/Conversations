@@ -1,6 +1,7 @@
 ---
 status: blocked
-depends: [workspace, observability, service-regression]
+depends:
+  [workspace, observability, service-regression, workspace-browser-regression]
 awaits:
   - "Vapi existing free account: usable existing credits without purchase, paid funding or billing changes; the controlled call returned HTTP400 credits_unavailable."
   - "Real Vapi capability proof: per-call seed/live boundary, authenticated callbacks, SDK join/token shape and spoken-history ordering/cutoff before root accepts an exact adapter mapping."
@@ -64,6 +65,14 @@ The actual provider phase created one dedicated bearer credential and one dedica
 The initial call-attempt claim and dedicated resource IDs remain private; the assistant's ephemeral callback was retired to a reserved `.invalid` destination before tunnel shutdown. The rejected call required no remote termination; both owned processes and all three local listeners were subsequently verified stopped. The new dedicated resources can be deliberately reconfigured later; no existing assistant or organization setting changed.
 
 This is actual provider unavailability evidence, not a balance-UI inference or a successful voice contract proof. Private server-created join compatibility, any separate browser token requirement, authenticated callback attachment under model overrides, raw/formatted seed-boundary representation, role/ordinal mapping, cumulative prefix behavior and spoken-tail/interruption/final-report semantics all remain **unproven**. The capability validation box stays unchecked. Broad product implementation remains gated on root's decision and exact mapping review; deterministic fixtures must not claim the missing real-provider facts. No public product behavior was implemented in this phase.
+
+### Current contract and account audit (2026-11-25)
+
+This proposal is rebased onto merged main `9fd5b68` after PR #39. Its completed browser/security/diagnostic records are preserved; they do not satisfy the voice capability gate. The [current provider contract audit](../docs/voice-provider-contract-audit.md) separates public API/SDK facts from the missing live evidence.
+
+The pinned SDK's existing-call join path is URL-based. Actual authorization, lifetime and post-ending invalidation remain probe requirements; a 30-second application join window is not proof of provider-enforced URL expiry. Do not assume a newer SDK's optional token behavior exists in 2.5.2 or call the creation path to join a registered call.
+
+A documented read-only assistant-list request with the existing local key succeeds. The dedicated probe assistant remains present with its retired callback and saved credential reference. No call or provider/billing mutation was made during this refresh. Current usable credits are unknown, and normal-profile Brave dashboard access is pending. The earlier unavailable-credit result remains historical; no acceptance item is newly checked and no product implementation is authorized by this research alone.
 
 ## Follow-ups
 
