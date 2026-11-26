@@ -1,10 +1,12 @@
 # Voice provider contract audit
 
-Reviewed 2026-11-25 against public official documentation and SDK source. This is research for the **blocked proposal**, not acceptance of a provider adapter. The earlier controlled request returned HTTP 400 with credits unavailable; it yielded no call, join token, media, or transcript evidence. Current usable balance remains unknown. The source-only research made no account requests or calls; the separate read-only inventory check is recorded in the plan.
+Reviewed 2026-11-25 against public official documentation and SDK source, with account availability checked on 2026-11-26. This is research for the **blocked proposal**, not acceptance of a provider adapter. The earlier controlled request returned HTTP 400 with credits unavailable; it yielded no call, join token, media, or transcript evidence. The subsequent signed-in dashboard check confirms a frozen wallet with no usable existing credits. The source-only research made no account requests or calls; the separate read-only account checks are recorded in the plan.
 
 ## Credit visibility
 
 No read-only usable-credit balance endpoint authenticated by a project private key was identified in the [public reference index](https://docs.vapi.ai/llms.txt). This is a bounded documentation finding, not proof that no API exists. Use the selected organization's Dashboard billing view: [Billing & Payment](https://docs.vapi.ai/billing/manage-billing-and-credits), or the older [Settings → Billing & Add-Ons](https://docs.vapi.ai/billing/manage-pay-as-you-go-billing). Successful API authentication does not establish available call credits. Do not guess endpoints or change billing.
+
+On 2026-11-26, the owner completed sign-in in the existing normal Brave profile. The selected organization's assistant list matches the earlier dedicated probe resource, and Billing & Payment shows no usable credits and a frozen-wallet banner. This clears dashboard access as a prerequisite, while free-account call availability remains blocked. No new call, resource, purchase, auto-reload or billing change was made. Account identifiers and raw captures remain private/local.
 
 ## Creation and browser join
 
@@ -26,7 +28,7 @@ The [end-of-call report](https://docs.vapi.ai/server-url/end-of-call-report) doc
 
 ## Required capability evidence
 
-- [ ] Read the correct organization's existing usable balance in Dashboard; keep purchases and auto-reload unchanged.
+- [x] Read the correct organization's existing usable balance in Dashboard; keep purchases and auto-reload unchanged.
 - [ ] After authorization and available free credits, capture one bounded server-created call's sanitized response shape; verify URL/token exposure, expiry, and registration before browser join.
 - [ ] Prove actual 2.5.2 join, microphone/media, stop, and cleanup; do not infer success from source signatures.
 - [ ] Verify callback bearer authentication with saved configuration and model-only context overrides.

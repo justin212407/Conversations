@@ -3,7 +3,7 @@ status: blocked
 depends:
   [workspace, observability, service-regression, workspace-browser-regression]
 awaits:
-  - "Vapi existing free account: usable existing credits without purchase, paid funding or billing changes; the controlled call returned HTTP400 credits_unavailable."
+  - "Vapi existing free account: usable existing credits without purchase, paid funding or billing changes; the controlled call returned HTTP400 credits_unavailable and the 2026-11-26 dashboard confirms the wallet remains frozen without usable credits."
   - "Real Vapi capability proof: per-call seed/live boundary, authenticated callbacks, SDK join/token shape and spoken-history ordering/cutoff before root accepts an exact adapter mapping."
 specs:
   - specs/architecture.md
@@ -18,7 +18,7 @@ issues: [23]
 
 ## Scope
 
-**Blocked proposal:** [Draft PR #35](https://github.com/justin212407/Conversations/pull/35) retains this design for review. The existing-account call was rejected for unavailable credits. No paid funding is authorized. Resume only when usable existing-account credits and real capability evidence are available; root must accept the exact provider mapping before product implementation. All feature acceptance remains unchecked.
+**Blocked proposal:** [Draft PR #35](https://github.com/justin212407/Conversations/pull/35) retains this design for review. The existing-account call was rejected for unavailable credits, and the 2026-11-26 signed-in dashboard confirms the frozen wallet still has no usable credits. No paid funding is authorized. Resume only when usable existing-account credits and real capability evidence are available; root must accept the exact provider mapping before product implementation. All feature acceptance remains unchecked.
 
 Complete #23 on the merged personal workspace using the existing free Vapi account. Introduce application-owned frontend/server adapters, authenticated durable provider ingestion, stable turn identities and completed-context resume. Preserve the text lifecycle, normal Clerk ownership and old Convex/widget data. Railway deployment remains #26; representative live voice verification may use an isolated local stack and a temporary restricted HTTPS callback endpoint.
 
@@ -72,7 +72,13 @@ This proposal is rebased onto merged main `9fd5b68` after PR #39. Its completed 
 
 The pinned SDK's existing-call join path is URL-based. Actual authorization, lifetime and post-ending invalidation remain probe requirements; a 30-second application join window is not proof of provider-enforced URL expiry. Do not assume a newer SDK's optional token behavior exists in 2.5.2 or call the creation path to join a registered call.
 
-A documented read-only assistant-list request with the existing local key succeeds. The dedicated probe assistant remains present with its retired callback and saved credential reference. No call or provider/billing mutation was made during this refresh. Current usable credits are unknown, and normal-profile Brave dashboard access is pending. The earlier unavailable-credit result remains historical; no acceptance item is newly checked and no product implementation is authorized by this research alone.
+A documented read-only assistant-list request with the existing local key succeeds. The dedicated probe assistant remains present with its retired callback and saved credential reference. No call or provider/billing mutation was made during this refresh. At that check, usable credits were unknown and normal-profile Brave dashboard access was pending. The earlier unavailable-credit result remains historical; no acceptance item is newly checked and no product implementation is authorized by this research alone.
+
+### Signed-in account availability check (2026-11-26)
+
+The owner completed normal-profile Vapi sign-in after the local computer/browser connection was restored. The selected organization's assistant list matches the earlier dedicated probe resource. Billing & Payment shows no usable existing credits, and the dashboard explicitly reports the wallet is frozen. Browser access and login are no longer blockers; usable free-account call credits remain unavailable.
+
+This was a read-only dashboard check, not another call attempt. No saved resource, callback, credential, purchase, auto-reload, organization or billing setting changed. The historical single-call rejection remains the only actual call attempt; join/media/authenticated callback/transcript capability evidence is still missing. Only the audit's balance-readback prerequisite is checked. All eight feature validation criteria above remain unchecked, PR #35 stays draft, and dependent voice/deployed acceptance in #24–#26 remains open. Identifiers, connection material, raw captures and the incremental change journal remain private/local.
 
 ## Follow-ups
 
