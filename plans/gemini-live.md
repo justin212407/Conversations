@@ -26,7 +26,7 @@ Architecture response ownership, durable lifecycle/context, versioned owned APIs
 3. Implement a backend-held fixed-origin Google adapter and resource owner. Keep credentials, handles and raw SDK errors private; never fall back to paid inference or activate billing. Bound setup, input/output queues, session duration, quota/failure handling and shutdown. The realtime service remains database-free; final writes remain API-owned.
 4. Integrate explicit microphone permission, input PCM, output playback, provisional captions, honest listening/speaking/ending/interrupted states and cleanup in the existing workspace. Preserve draft/history access and text after denial/failure. Account/selection changes fence late work and immediately stop local audio.
 5. Add deterministic provider/domain/API/realtime/browser coverage and allowlisted voice diagnostics alongside each stage. Verify repeated turns, input ordering, barge-in, disconnect/restart, lost acknowledgements, cross-account/cross-mode races, bounded queues, privacy and exact resource cleanup.
-6. Record separate real application microphone/audio and PostgreSQL reload/reopen/new-session context proof. Review and merge this feature before dependent #24/#25 final voice closeout. Keep production transport, cutover and deployment evidence in #26.
+6. Absorb the completed probe plan’s product deferral: implement the reviewed activity/finality/transport contract, browser audio, PostgreSQL/outbox durability, voice diagnostics and regression coverage. Record separate real application microphone/audio and PostgreSQL reload/reopen/new-session context proof. Review and merge this feature before dependent #24/#25 final voice closeout. Keep production transport, cutover and deployment evidence in #26.
 
 ## Validation
 
@@ -36,6 +36,7 @@ Architecture response ownership, durable lifecycle/context, versioned owned APIs
 - [ ] Workspace microphone/audio/captions, denial/failure and cleanup verified.
 - [ ] Deterministic integration/browser/privacy tests and voice diagnostics pass.
 - [ ] Real application voice plus PostgreSQL reload/reopen/context smoke passes.
+- [ ] All product deferrals from [gemini-live-probe](gemini-live-probe.md) are verified through the preceding contract, transport, history, workspace, diagnostics/regression and live-application criteria.
 - [ ] Reviewed feature merged; #40 and dependent acceptance reconciled with local-only change records.
 
 ## Risks / unknowns

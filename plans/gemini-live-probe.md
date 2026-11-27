@@ -1,10 +1,11 @@
 ---
-status: in-progress
+status: done
 depends: [workspace, workspace-browser-regression]
 specs:
   - specs/architecture.md
   - specs/behaviors/conversation-lifecycle.md
 issues: [40]
+pr: 41
 ---
 
 # Plan: Verify zero-cost Gemini Live voice capability
@@ -45,6 +46,9 @@ Project-specific quota, free-tier verification, SDK setup deadlines, independent
 
 The owner explicitly authorized this investigation, authentication setup, a small voice/transcript probe and successor issue tracking on 2026-11-26. Existing Vapi usage is frozen at zero credits; no paid funding is authorized. Normal Brave account access is verified. The exact configured key matches the selected existing Free Tier project; its model table shows usable Gemini 3.8 Live quota, and billing reports no billing account. The actual two-connection probe passes in 34.358 seconds with both clean closes. See [safe observed evidence](../docs/gemini-live-probe.md). #40 carries all original unfinished voice scope from #23; the Vapi issue/proposal is retired as superseded, never completed. No product feature or deployed acceptance is claimed.
 
+Both independent specification/claims and standards reviews clear functional documentation source `c383bfd`. Scoped formatting, changed diff, plan graph, local links and secret-value checks pass. PR #41 records this completed operational scope; no product/runtime acceptance is included. Hosted run 46005132149 did not start any job steps because the account is billing-locked; the existing reviewed-local-check waiver applies, not a hosted pass.
+
 ## Follow-ups
 
-The accepted voice implementation, voice-specific diagnostics, complete regression coverage and deferred production deployment remain separate work under the Slice 1 epic.
+- Deferred to [gemini-live](gemini-live.md) — implement the reviewed activity/finality/transport contract, browser audio, PostgreSQL/outbox durability, diagnostics, regression coverage and real application voice/context proof under #40/#24/#25. The planned implementation record absorbs these requirements in this closeout commit.
+- Issue [#26](https://github.com/justin212407/Conversations/issues/26) — deferred production transport, cutover, deployment and release evidence after voice and dependent closeout.
