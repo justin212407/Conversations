@@ -1,4 +1,5 @@
 import { z } from "zod"
+import { parseTransportUrl } from "./transport-url.js"
 
 const defaultOrigins = [
   "http://localhost:3000",
@@ -16,11 +17,9 @@ export function loadRealtimeConfig(env: NodeJS.ProcessEnv = process.env) {
         .optional()
     ),
     REALTIME_ALLOW_PRIVATE_HTTP: z.enum(["true", "false"]).default("false"),
-    REALTIME_PUBLIC_URL: z
-      .string()
-      .url()
-      .default("ws://localhost:4301/v1/connect"),
-    REALTIME_API_URL: z.string().url().default("http://127.0.0.1:4300"),
+    // Keep raw syntax intact for parseTransportUrl below; .url() may repair it.
+    REALTIME_PUBLIC_URL: z.string().default("ws://localhost:4301/v1/connect"),
+    REALTIME_API_URL: z.string().default("http://127.0.0.1:4300"),
     REALTIME_REDIS_PREFIX: z
       .string()
       .regex(/^[A-Za-z0-9_-]{1,80}$/)
@@ -56,20 +55,14 @@ export function loadRealtimeConfig(env: NodeJS.ProcessEnv = process.env) {
       ? []
       : defaultOrigins
   try {
-    const publicUrl = new URL(config.REALTIME_PUBLIC_URL),
-      api = new URL(config.REALTIME_API_URL)
+    const publicUrl = parseTransportUrl(config.REALTIME_PUBLIC_URL),
+      api = parseTransportUrl(config.REALTIME_API_URL)
     if (
+      !publicUrl ||
+      !api ||
       !["ws:", "wss:"].includes(publicUrl.protocol) ||
       publicUrl.pathname !== "/v1/connect" ||
-      publicUrl.search ||
-      publicUrl.hash ||
-      publicUrl.username ||
-      publicUrl.password ||
       !["http:", "https:"].includes(api.protocol) ||
-      api.username ||
-      api.password ||
-      api.search ||
-      api.hash ||
       api.pathname !== "/"
     )
       throw new Error()

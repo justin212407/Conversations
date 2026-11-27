@@ -27,10 +27,10 @@ The observability security configuration's literal URL, secret-safe error and ex
 
 ## Validation
 
-- [ ] Actual backend config regression fails before the fix and passes afterward, without network, real environment files or provider access.
-- [ ] All three transport fields reject repaired/credential/query/fragment/control syntax, including empty delimiters, with safe errors.
-- [ ] Existing local HTTP/WS and production HTTPS/WSS, path, IPv6/port and distinct private-network policies remain intact.
-- [ ] Focused tests, package build/type/lint, formatting and diff/plan checks pass with worktree-local outputs.
+- [x] Actual backend config regression fails before the fix and passes afterward, without network, real environment files or provider access.
+- [x] All three transport fields reject repaired/credential/query/fragment/control syntax, including empty delimiters, with safe errors.
+- [x] Existing local HTTP/WS and production HTTPS/WSS, path, IPv6/port and distinct private-network policies remain intact.
+- [x] Focused tests, package build/type/lint, formatting and diff/plan checks pass with worktree-local outputs.
 - [ ] Runbook records exact local evidence and remaining voice/deployment prerequisites; root reviews the scoped PR before merge.
 
 ## Risks / unknowns
@@ -42,6 +42,8 @@ WHATWG parsing normalizes some malformed inputs before parsed fields can reveal 
 Merged main `6ed523c` accepts actual production configuration such as an internal API URL with a repaired authority separator, empty userinfo and empty query/fragment delimiters, plus a collector URL with leading whitespace. The minimal feedback loop is the package's pure config functions, so no process/network instrumentation is needed. Existing production protocol rejection alone does not detect these repairs.
 
 The prior dependency migration intentionally retained URL normalization, including a runtime compatibility case. The literal transport rule is an explicit security-policy amendment, not a claim that every previous normalization was unintended. Root accepted the current-spec reconciliation before that compatibility test changed; completed historical plans/evidence remain frozen. Voice #40 and deployed production #26 are pre-existing issue prerequisites, not omitted deliverables of this bounded fix.
+
+The initial actual-loader regression reported 38 missing-exception failures out of 52 cases. A syntax guard placed after schema parsing still missed twelve realtime cases because the schema had already normalized them; transport schemas now retain raw strings until the dedicated parser. The expanded 62-case transport suite and complete 104-case service-runtime suite pass on macOS/Node 22.23.1/pnpm 10.4.1. Shared/runtime builds, runtime type/lint, dependent API/realtime builds/typechecks, nine-file formatting, diff and plan graph checks pass with isolated dependencies/outputs. Frozen offline install needed an uncached public registry tarball; the normal frozen install completed with no lock/resolution change. These are local configuration/runtime checks, not deployed security or voice acceptance. Root owns external review, PR publication and merge.
 
 ## Follow-ups
 

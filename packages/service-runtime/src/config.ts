@@ -1,5 +1,6 @@
 import { z } from "zod"
 import type { ServiceName } from "@conversations/shared"
+import { parseTransportUrl } from "./transport-url.js"
 
 const address = (protocols: string[]) =>
   z
@@ -27,7 +28,8 @@ const envSchema = z.object({
   ),
   OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: z.preprocess(
     (value) => (value === "" ? undefined : value),
-    z.string().url().optional()
+    // Keep raw syntax intact for parseTransportUrl below; .url() may repair it.
+    z.string().optional()
   ),
   TRACE_SAMPLE_RATIO: z.coerce.number().min(0).max(1).default(0.1),
   OBSERVABILITY_ALLOW_PRIVATE_HTTP: z.enum(["true", "false"]).default("false"),
@@ -66,13 +68,12 @@ export function loadConfig(
     throw new Error("Invalid service configuration: DATABASE_URL is required")
   }
   if (parsed.data.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT) {
-    const url = new URL(parsed.data.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT)
+    const url = parseTransportUrl(
+      parsed.data.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
+    )
     if (
+      !url ||
       !["http:", "https:"].includes(url.protocol) ||
-      url.username ||
-      url.password ||
-      url.search ||
-      url.hash ||
       (parsed.data.NODE_ENV === "production" &&
         url.protocol !== "https:" &&
         parsed.data.OBSERVABILITY_ALLOW_PRIVATE_HTTP !== "true")
