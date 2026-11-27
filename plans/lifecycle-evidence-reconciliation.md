@@ -1,10 +1,11 @@
 ---
-status: in-progress
+status: done
 depends: [workspace, workspace-browser-regression, gemini-live-probe]
 specs:
   - specs/behaviors/service-regression.md
   - specs/behaviors/conversation-lifecycle.md
 issues: [25]
+pr: 42
 ---
 
 # Plan: Reconcile delivered text lifecycle evidence
@@ -30,8 +31,8 @@ The service-regression specification's separation of deterministic signed-sessio
 - [x] All eight #25 acceptance clauses map to concrete commands/source and recorded evidence with remaining scope explicit.
 - [x] Synthetic signed-session automation and real Clerk/provider observations remain separate; no new live or deployed pass is claimed.
 - [x] Active workspace/regression documentation points to #40; completed predecessor plans are unchanged.
-- [ ] Scoped Markdown, links, diff and plan checks pass; independent review clears the exact source.
-- [ ] The issue-reconciliation handoff identifies the delivered standalone text clause and preserves unfinished voice/security/full-lifecycle acceptance with the actual hosted-CI waiver status.
+- [x] Scoped Markdown, links, diff and plan checks pass; independent review clears the exact source.
+- [x] The issue-reconciliation handoff identifies the delivered standalone text clause and preserves unfinished voice/security/full-lifecycle acceptance with the actual hosted-CI waiver status.
 
 ## Risks / unknowns
 
@@ -40,6 +41,8 @@ Recorded evidence is time/source scoped. The deterministic browser does not auto
 ## Notes
 
 At this audit, runtime/script/workflow source at merged main `6ed523c762545622204d1c352eae0e0ab00145e9` is unchanged from PR #39 functional verification `407f8499362f78245da0ce1f3b0016e4942b2aba`. The existing frozen plans preserve actual prior results. This plan does not add speculative runtime tests to make a documentation PR appear functional.
+
+Both independent specification and standards reviews clear corrected functional source `bb06cf1`. A separate local Command Code run using `stealth/glyph-cluster:free` returned APPROVE for exact `bb06cf1e6cbeaeb4da48d5328c798125812720ed`, with no tool calls. An earlier free Flint attempt timed out without a verdict and is not approval. Root verified formatting, relative links, diff and plan ownership; #42 closes only this evidence audit. The standalone text lifecycle clause is supported with its synthetic-versus-real authentication qualification; #25 remains open for voice/mixed/final acceptance. Hosted execution remains unavailable under the existing waiver, never passed.
 
 ## Follow-ups
 
