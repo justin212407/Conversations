@@ -43,6 +43,6 @@ At this audit, runtime/script/workflow source at merged main `6ed523c76254562220
 
 ## Follow-ups
 
-- Issue [#40](https://github.com/justin212407/Conversations/issues/40) — actual Gemini audio, authoritative transcript mapping, transactional persistence/recovery and application voice smoke.
+- Deferred to [gemini-live](gemini-live.md) — use the reconciled text/authentication baseline while completing actual Gemini audio, authoritative transcript mapping, transactional persistence/recovery and application voice smoke under #40. The planned Gemini record absorbs that requirement in the same commit.
 - Issue [#25](https://github.com/justin212407/Conversations/issues/25) — final combined voice/text acceptance after the voice feature, with hosted execution status reported honestly.
 - Issue [#26](https://github.com/justin212407/Conversations/issues/26) — production deployment/cutover evidence after its prerequisites; this local evidence audit is not deployment.
