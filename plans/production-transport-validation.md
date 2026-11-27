@@ -1,10 +1,11 @@
 ---
-status: in-progress
+status: done
 depends: [observability, frontend-security, workspace-browser-regression]
 specs:
   - specs/behaviors/observability.md
   - specs/behaviors/dependency-security.md
 issues: [24]
+pr: 43
 ---
 
 # Plan: Reject repaired backend transport configuration
@@ -31,7 +32,7 @@ The observability security configuration's literal URL, secret-safe error and ex
 - [x] All three transport fields reject repaired/credential/query/fragment/control syntax, including empty delimiters, with safe errors.
 - [x] Existing local HTTP/WS and production HTTPS/WSS, path, IPv6/port and distinct private-network policies remain intact.
 - [x] Focused tests, package build/type/lint, formatting and diff/plan checks pass with worktree-local outputs.
-- [ ] Runbook records exact local evidence and remaining voice/deployment prerequisites; root reviews the scoped PR before merge.
+- [x] Runbook records exact local evidence and remaining voice/deployment prerequisites; root reviews the scoped PR before merge.
 
 ## Risks / unknowns
 
@@ -43,7 +44,7 @@ Merged main `6ed523c` accepts actual production configuration such as an interna
 
 The prior dependency migration intentionally retained URL normalization, including a runtime compatibility case. The literal transport rule is an explicit security-policy amendment, not a claim that every previous normalization was unintended. Root accepted the current-spec reconciliation before that compatibility test changed; completed historical plans/evidence remain frozen. Voice #40 and deployed production #26 are pre-existing issue prerequisites, not omitted deliverables of this bounded fix.
 
-The initial actual-loader regression reported 38 missing-exception failures out of 52 cases. A syntax guard placed after schema parsing still missed twelve realtime cases because the schema had already normalized them; transport schemas now retain raw strings until the dedicated parser. The expanded 62-case transport suite and complete 104-case service-runtime suite pass on macOS/Node 22.23.1/pnpm 10.4.1. Shared/runtime builds, runtime type/lint, dependent API/realtime builds/typechecks, nine-file formatting, diff and plan graph checks pass with isolated dependencies/outputs. Frozen offline install needed an uncached public registry tarball; the normal frozen install completed with no lock/resolution change. These are local configuration/runtime checks, not deployed security or voice acceptance. Root owns external review, PR publication and merge.
+The initial actual-loader regression reported 38 missing-exception failures out of 52 cases. A syntax guard placed after schema parsing still missed twelve realtime cases because the schema had already normalized them; transport schemas now retain raw strings until the dedicated parser. The expanded 62-case transport suite and complete 104-case service-runtime suite pass on macOS/Node 22.23.1/pnpm 10.4.1. Shared/runtime builds, runtime type/lint, dependent API/realtime builds/typechecks, nine-file formatting, diff and plan graph checks pass with isolated dependencies/outputs. Frozen offline install needed an uncached public registry tarball; the normal frozen install completed with no lock/resolution change. These are local configuration/runtime checks, not deployed security or voice acceptance. Both independent specification and standards reviews clear functional source `d36fb25155c1bec4e8014e49d362afe461add267` with zero findings. A separate local Command Code run using explicit `stealth/glyph-cluster:free` returned APPROVE for that exact source, with zero tool calls. The conservative raw-delimiter policy is intentional. PR #43 closes only this bounded configuration hardening; root controls final review/merge. Hosted execution remains governed by the existing billing-block/local-verification waiver, with no hosted pass claimed.
 
 ## Follow-ups
 
