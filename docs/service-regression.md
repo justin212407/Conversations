@@ -1,6 +1,6 @@
 # Service regression gates
 
-These gates cover the PostgreSQL/API/text-worker/realtime/diagnostics foundation and the browser workspace against isolated actual services. Synthetic identity and deterministic provider fixtures require no cloud credentials. Actual Clerk sign-in evidence remains separate; Vapi voice and deployed HTTPS remain #23/#26. The owner has temporarily waived hosted Actions execution because account access/billing is unavailable; a local pass is recorded as local evidence only.
+These gates cover the PostgreSQL/API/text-worker/realtime/diagnostics foundation and the browser workspace against isolated actual services. Synthetic identity and deterministic provider fixtures require no cloud credentials. Actual Clerk sign-in evidence remains separate; Gemini application voice and deployed HTTPS remain #40/#26. The owner has temporarily waived hosted Actions execution because account access/billing is unavailable; a local pass is recorded as local evidence only. The [lifecycle evidence reconciliation](lifecycle-evidence.md) maps #25's clauses to actual source and recorded checks without treating completed text coverage as full voice acceptance.
 
 ## Prerequisites and commands
 
@@ -115,6 +115,6 @@ The wrapper applies that threshold to the complete validated JSON report. Pinned
 
 The first resumed local scan on 2026-11-06 reported 87 high and 10 critical vulnerability counts. PR #36 reduced these to two high findings; [PR #38](https://github.com/justin212407/Conversations/pull/38) completes the patched schema/legacy compatibility stage. Its fresh full-workspace scan passes the required threshold with **0 high / 0 critical**, retaining **26 moderate / 5 low** and all 31 advisory records. No importer exclusion, advisory ignore or vulnerable compatibility-parser fallback is used. Counts can change with registry advisories; rerun the actual gate rather than treating this observation as permanent.
 
-See the [schema/legacy evidence](dependency-security-schema-evidence.md) for exact resolutions, actual artifact/type/compatibility checks and inherited UI/widget limitations. The browser commands and workflow provide the portable browser gate; full voice/lifecycle acceptance, hosted execution and production deployment remain separately outstanding under #25/#23/#26.
+See the [schema/legacy evidence](dependency-security-schema-evidence.md) for exact resolutions, actual artifact/type/compatibility checks and inherited UI/widget limitations. The browser commands and workflow provide the portable browser gate; full voice/lifecycle acceptance, hosted execution and production deployment remain separately outstanding under #25/#40/#26.
 
 See [observability](observability.md) for operator configuration and [local services](development.md) for the development stack. The verifier deliberately bypasses operator configuration in favor of its own private scrape mount.
