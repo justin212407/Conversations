@@ -206,14 +206,13 @@ test("shutdown stops job intake before draining an active HTTP request", async (
   assert.equal(resourcesClosed, true)
 })
 
-test("patched URL output normalization retains effective connection semantics and guards", () => {
+test("patched database URL normalization and strict transport guards coexist", () => {
   const ordinary = loadConfig("api", environment)
   const config = loadConfig("api", {
     ...environment,
     REDIS_URL: " \tredis://us\ner:p%40ss@cache.example:6380/2\r ",
     DATABASE_URL: " \npostgresql://test:test@db.example:5432/test\t ",
-    OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:
-      " \thttps://traces.example/v1/traces\r ",
+    OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: "https://traces.example/v1/traces",
   })
   assert.equal(ordinary.REDIS_URL, environment.REDIS_URL)
   assert.equal(config.REDIS_URL, "redis://user:p%40ss@cache.example:6380/2")
@@ -243,6 +242,7 @@ test("patched URL output normalization retains effective connection semantics an
     )
   }
   for (const endpoint of [
+    " \thttps://traces.example/v1/traces\r ",
     " \nhttp://traces.example/v1/traces ",
     "https://user:secret@traces.example/v1/traces",
     "https://traces.example/v1/traces?secret=token",
@@ -261,12 +261,20 @@ test("patched URL output normalization retains effective connection semantics an
     )
   }
   const realtime = loadRealtimeConfig({
-    REALTIME_PUBLIC_URL: " \twss://socket.example/v1/connect\n ",
-    REALTIME_API_URL: " \rhttps://api.example\t ",
+    REALTIME_PUBLIC_URL: "wss://socket.example/v1/connect",
+    REALTIME_API_URL: "https://api.example",
   })
   assert.equal(new URL(realtime.REALTIME_PUBLIC_URL).hostname, "socket.example")
   assert.equal(realtime.REALTIME_PUBLIC_URL, "wss://socket.example/v1/connect")
   assert.equal(realtime.REALTIME_API_URL, "https://api.example")
+  for (const configuration of [
+    { REALTIME_PUBLIC_URL: " \twss://socket.example/v1/connect\n " },
+    { REALTIME_API_URL: " \rhttps://api.example\t " },
+  ])
+    assert.throws(
+      () => loadRealtimeConfig(configuration),
+      /Invalid realtime service configuration/
+    )
   assert.throws(
     () =>
       loadRealtimeConfig({

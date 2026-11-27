@@ -70,6 +70,22 @@ Production requires explicit HTTPS frontend origins and WSS public socket URLs. 
 
 Keep all secret-bearing env/scrape files ignored and outside images. The service telemetry package is server-only; shared application contracts import no SDK. Optional frontend diagnostics follow the separate error-only boundary below. Dependency scanning remains #25 and rate limiting remains Slice 2.
 
+### Local transport configuration validation
+
+`REALTIME_PUBLIC_URL`, `REALTIME_API_URL` and `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` are checked as raw authority URLs before any parser can repair them. Whitespace/control characters, backslashes, missing authority separators, empty hosts/ports and any `@`, `?` or `#` delimiter are rejected, including empty userinfo/query/fragment. Do not trim a copied value to conceal a configuration error. Correct the local/server configuration without printing its contents. Invalid realtime transport configuration reports a fixed category; collector configuration reports only its field name.
+
+The shared server-only parser validates syntax, while the existing caller policies still require WSS and `/v1/connect` for public production realtime, HTTPS and the root path for the internal API, and HTTPS with a permitted trace path for collectors. Distinct private-network flags allow only their corresponding internal HTTP boundary; they never permit malformed URLs or public WS. Valid numeric ports, IPv6 authorities and uppercase schemes remain usable. Empty/absent collector configuration continues to disable export. Database and Redis URLs retain their separate credential-bearing policies.
+
+The config regressions exercise the actual two service configuration loaders with synthetic values and no network or environment-file access:
+
+```sh
+pnpm --filter @conversations/service-runtime exec tsx --test test/transport-config.test.ts
+```
+
+The original 52-case regression ran before the fix: 38 cases failed because an exception was missing and 14 passed. Parsed URL field checks alone missed the malformed input; the realtime schema's earlier URL validation also normalized some values before a later syntax guard could inspect them. Keeping transport fields as raw strings until the shared parser fixed that second layer. The expanded 62-case suite now also checks invalid hosts/relative URLs and the existing empty-collector behavior. This validates local configuration rejection and safe errors, not a deployed certificate, proxy, trusted network or production secret store. Full #24 acceptance still requires application voice telemetry after #40 and actual deployed operational evidence under #26.
+
+Verified locally on macOS with Node 22.23.1 and pnpm 10.4.1: all 62 transport regressions and all 104 service-runtime tests pass, including the amended compatibility case that retains database/Redis normalization while rejecting malformed transport values. Shared/runtime builds, runtime type/lint checks and dependent API/realtime builds/typechecks pass using isolated worktree dependencies and outputs. The frozen offline installation first reported a missing registry tarball; a normal frozen installation completed without a lockfile/resolution change. No hosted, Linux-container, real-provider or deployed pass is claimed by this bounded check.
+
 ## Optional frontend error summaries
 
 Frontend diagnostics are disabled without configured DSNs: `NEXT_PUBLIC_SENTRY_DSN` enables the browser, while server-only `SENTRY_DSN` enables Next.js Node/edge diagnostics. Missing or invalid values skip SDK initialization. Accepted DSNs use HTTPS, an alphanumeric public key, a host and a numeric project ID (an optional plain path prefix is supported); credentials other than the public key, whitespace/control characters, backslashes, query and fragment are rejected. The browser DSN is public configuration, not an application/provider secret. Changing public configuration requires rebuilding the frontend. Never paste real configuration or captures into issues, examples or test commands.
