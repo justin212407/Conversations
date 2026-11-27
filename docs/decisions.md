@@ -44,8 +44,8 @@ The separation is deliberately minimal at first; we add only the contracts and i
 
 ### WAPI sits behind an application-owned adapter
 
-The Vapi Web SDK will be isolated behind a provider adapter.
-The core conversation domain will not depend on Vapi types or events.
+Voice providers are isolated behind an application-owned adapter. The original Vapi choice is superseded by the 2026-11-27 Gemini decision below.
+The core conversation domain will not depend on provider types or events.
 This lets us change or add voice providers later without rewriting the domain.
 
 ### Realtime service owns delivery only
@@ -144,7 +144,7 @@ This avoids pain when we introduce breaking changes.
 - Slice 1 models accounts, conversations, messages, and their operational state. Projects arrive in Slice 4; agent runs arrive in Slice 5.
 - The user chose fresh PostgreSQL data. Existing Convex data remains untouched; no import or old-data deletion is part of this slice.
 - Fastify is the Node.js HTTP framework. Railway is the initial deployment target; actual provisioning and deployment evidence remain issue #26.
-- Vapi generates live voice responses. The worker generates typed responses. Authenticated provider callbacks are the durable voice source; browser captions are provisional. A voice turn never triggers a duplicate worker response.
+- Original 2026-10-28 voice choice: Vapi generates live responses with authenticated callbacks. Superseded by the 2026-11-27 Gemini decision below; the typed worker remains separate and browser captions remain provisional.
 - Resume means continuing the same conversation using persisted completed context, including when starting a new provider call. Interruptions, duplicate delivery, ordering, and recovery are specified explicitly.
 - Use structured Pino logs, OpenTelemetry traces, and Prometheus metrics; implementation and collector configuration arrive with issue #24.
 - The detailed desired behavior is in [architecture](../specs/architecture.md), [conversation lifecycle](../specs/behaviors/conversation-lifecycle.md), and [API contracts](../specs/api/conversations.md). These specs describe the target; the issue tracker records what has been implemented and verified.
@@ -152,7 +152,7 @@ This avoids pain when we introduce breaking changes.
 ### Slice 1: Durable Voice Conversation
 
 Build the complete lifecycle of a voice conversation.
-A developer signs in, creates a conversation, speaks through WAPI, sees streaming responses, reloads the history, and resumes later.
+A developer signs in, creates a conversation, speaks through the selected provider adapter, sees streaming responses, reloads the history, and resumes later.
 The slice includes persistence, the API boundary, the realtime service, worker jobs for any background processing, and end-to-end observability.
 Text fallback is included for debugging, accessibility, and deterministic testing.
 
@@ -179,20 +179,28 @@ Support tools, multi-step execution, approvals, retries, and execution traces.
 
 ## Decision Log
 
-| Decision | Choice | Rejected Alternatives | Rationale |
-| --- | --- | --- | --- |
-| Product identity | Voice-first AI workspace + agent platform | Generic workspace only, agent platform only | Preserves existing voice identity and enables both pillars |
-| Target user | Individual developer | Teams, support teams, general consumer | Keeps the domain narrow and portfolio-focused |
-| Architecture timing | Separate services now, minimal complexity | Full distributed architecture now, product first then extract | Avoids the cost of later extraction while keeping services explicit |
-| WAPI integration | Provider adapter | Direct dependency on Vapi types | Prevents lock-in and keeps domain clean |
-| Realtime responsibility | Connection and delivery only | Orchestration or full domain service | Keeps business logic testable and separated |
-| System of record | PostgreSQL | Convex, hybrid, document database | Stronger relational model, migrations, auditability |
-| External API | REST + OpenAPI | tRPC, GraphQL, gRPC | Interviewable, language-independent, clear contracts |
-| Realtime transport | Raw WebSockets | Socket.IO, SSE, managed services | Demonstrates ownership of connection mechanics |
-| Backend runtime | TypeScript/Node.js | Python, Go, mixed | Matches existing stack and ecosystem |
-| Frontend strategy | Redesign in place | Rewrite, extract later | Preserves working UI and voice integration |
-| Job queue | BullMQ on Redis | RabbitMQ, PostgreSQL queue, custom | Proven, Redis-native, excellent TypeScript support |
-| Database access | Drizzle ORM | Prisma, raw SQL, other ORMs | Lightweight, type-safe, modern |
-| Auth | Clerk + internal account boundary | Build auth ourselves, single user, full RBAC | Production-grade auth without operational burden |
-| Deployment | Docker Compose + one cloud target | Kubernetes, serverless, local-only | Real deployment without Kubernetes becoming the project |
-| API versioning | URL versioning from day one | No versioning, header versioning, schema evolution | Simple and clear |
+| Decision                | Choice                                    | Rejected Alternatives                                         | Rationale                                                           |
+| ----------------------- | ----------------------------------------- | ------------------------------------------------------------- | ------------------------------------------------------------------- |
+| Product identity        | Voice-first AI workspace + agent platform | Generic workspace only, agent platform only                   | Preserves existing voice identity and enables both pillars          |
+| Target user             | Individual developer                      | Teams, support teams, general consumer                        | Keeps the domain narrow and portfolio-focused                       |
+| Architecture timing     | Separate services now, minimal complexity | Full distributed architecture now, product first then extract | Avoids the cost of later extraction while keeping services explicit |
+| WAPI integration        | Provider adapter                          | Direct dependency on Vapi types                               | Prevents lock-in and keeps domain clean                             |
+| Realtime responsibility | Connection and delivery only              | Orchestration or full domain service                          | Keeps business logic testable and separated                         |
+| System of record        | PostgreSQL                                | Convex, hybrid, document database                             | Stronger relational model, migrations, auditability                 |
+| External API            | REST + OpenAPI                            | tRPC, GraphQL, gRPC                                           | Interviewable, language-independent, clear contracts                |
+| Realtime transport      | Raw WebSockets                            | Socket.IO, SSE, managed services                              | Demonstrates ownership of connection mechanics                      |
+| Backend runtime         | TypeScript/Node.js                        | Python, Go, mixed                                             | Matches existing stack and ecosystem                                |
+| Frontend strategy       | Redesign in place                         | Rewrite, extract later                                        | Preserves working UI and voice integration                          |
+| Job queue               | BullMQ on Redis                           | RabbitMQ, PostgreSQL queue, custom                            | Proven, Redis-native, excellent TypeScript support                  |
+| Database access         | Drizzle ORM                               | Prisma, raw SQL, other ORMs                                   | Lightweight, type-safe, modern                                      |
+| Auth                    | Clerk + internal account boundary         | Build auth ourselves, single user, full RBAC                  | Production-grade auth without operational burden                    |
+| Deployment              | Docker Compose + one cloud target         | Kubernetes, serverless, local-only                            | Real deployment without Kubernetes becoming the project             |
+| API versioning          | URL versioning from day one               | No versioning, header versioning, schema evolution            | Simple and clear                                                    |
+
+## Voice provider replacement — 2026-11-27
+
+The owner requires zero expenditure and authorized the Gemini Live quota/authentication investigation, real probe and successor tracking. Vapi's existing account has zero credits and a frozen wallet; no paid funding is authorized. #40 replaces Vapi-specific #23, which is retired as not planned rather than completed. Historical draft PR #35 remains unmerged.
+
+Select Gemini Live on the existing verified Free Tier Developer API project. The exact configured key, project tier and model quota were matched in signed-in AI Studio; the billing page reports no billing account. The [bounded real probe](gemini-live-probe.md) passed audio input/output, transcripts, repeated turns, manual interruption and a fresh connection seeded from a private completed context record. Observed limits are project-specific and mutable; use no paid fallback, billing activation, tools or credit cycling. No new key/environment change was necessary. Free-tier content can be used to improve Google products; verification uses synthetic content.
+
+The API owns the private provider socket and trusted transcript ingestion behind an adapter. PostgreSQL remains authoritative; application-owned identities and the existing operation/outbox fence remain shared with text. Gemini events are not Vapi snapshots/callbacks/final reports. The [implementation plan](../plans/gemini-live.md) owns detailed contract review, activity/finality ambiguity, browser audio, persistence/recovery, tests and live application verification. This decision records the chosen direction, not a delivered voice feature. Production/deployment remains #26.
