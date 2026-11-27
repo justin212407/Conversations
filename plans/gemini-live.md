@@ -21,7 +21,7 @@ Architecture response ownership, durable lifecycle/context, versioned owned APIs
 
 ## Approach
 
-1. Specify the server-owned provider socket and authenticated bounded browser audio transport, operation/session admission, manual/automatic activity choice, app-assigned turn identities and fail-closed handling of late/unattributable input transcripts. State exactly which server-observed boundary permits completed persistence; leave interrupted/disconnected tails unresolved where evidence is insufficient.
+1. Use the [reconciled text lifecycle evidence](../docs/lifecycle-evidence.md) as the existing baseline, preserving its distinction between deterministic signed-session checks and recorded real Clerk acceptance; new voice changes need their own verification. Specify the server-owned provider socket and authenticated bounded browser audio transport, operation/session admission, manual/automatic activity choice, app-assigned turn identities and fail-closed handling of late/unattributable input transcripts. State exactly which server-observed boundary permits completed persistence; leave interrupted/disconnected tails unresolved where evidence is insufficient.
 2. Deepen the existing owned operation, history, transactional outbox and session fence instead of adding a second message-write protocol. Support full ordered completed context, repeated equal turns and one live operation across text/voice, with idempotent start/stop and bounded restart/recovery behavior.
 3. Implement a backend-held fixed-origin Google adapter and resource owner. Keep credentials, handles and raw SDK errors private; never fall back to paid inference or activate billing. Bound setup, input/output queues, session duration, quota/failure handling and shutdown. The realtime service remains database-free; final writes remain API-owned.
 4. Integrate explicit microphone permission, input PCM, output playback, provisional captions, honest listening/speaking/ending/interrupted states and cleanup in the existing workspace. Preserve draft/history access and text after denial/failure. Account/selection changes fence late work and immediately stop local audio.
@@ -36,6 +36,7 @@ Architecture response ownership, durable lifecycle/context, versioned owned APIs
 - [ ] Workspace microphone/audio/captions, denial/failure and cleanup verified.
 - [ ] Deterministic integration/browser/privacy tests and voice diagnostics pass.
 - [ ] Real application voice plus PostgreSQL reload/reopen/context smoke passes.
+- [ ] Voice regression and combined lifecycle reconciliation retain the baseline/evidence boundaries absorbed from [lifecycle-evidence-reconciliation](lifecycle-evidence-reconciliation.md); actual voice/authentication/deployment proof is not inferred from text fixtures.
 - [ ] All product deferrals from [gemini-live-probe](gemini-live-probe.md) are verified through the preceding contract, transport, history, workspace, diagnostics/regression and live-application criteria.
 - [ ] Reviewed feature merged; #40 and dependent acceptance reconciled with local-only change records.
 
